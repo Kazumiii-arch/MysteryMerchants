@@ -1,3 +1,8 @@
+
+        }
+    }
+            }
+            
 package com.yourpackage.mysterymerchant.ui;
 
 import com.yourpackage.mysterymerchant.MysteryMerchant;
@@ -12,6 +17,7 @@ import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.HandlerList;
 import org.bukkit.event.Listener;
+import org.bukkit.event.inventory.ClickType;
 import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.event.inventory.InventoryCloseEvent;
 import org.bukkit.inventory.Inventory;
@@ -46,17 +52,13 @@ public class EditorGUI implements Listener {
         player.openInventory(gui);
     }
 
-    // FIXED: The logic for populating items has been completely rewritten to be efficient and prevent loops.
     private void populateMainItems() {
         List<MerchantItem> items = itemManager.getMerchantItems();
         int itemIndex = 0;
 
-        // Loop through all GUI slots
         for (int slot = 0; slot < gui.getSize(); slot++) {
-            // Check if the current slot is an empty, non-border slot
             if (gui.getItem(slot) == null) {
                 if (itemIndex < items.size()) {
-                    // We have an item to place
                     MerchantItem merchantItem = items.get(itemIndex);
                     ItemStack displayItem = merchantItem.getItemStack().clone();
                     ItemMeta meta = displayItem.getItemMeta();
@@ -79,9 +81,8 @@ public class EditorGUI implements Listener {
                         displayItem.setItemMeta(meta);
                     }
                     gui.setItem(slot, displayItem);
-                    itemIndex++; // Move to the next item
+                    itemIndex++;
                 } else {
-                    // No more items to place, we can stop
                     break;
                 }
             }
@@ -114,7 +115,6 @@ public class EditorGUI implements Listener {
     }
 
     private void openItemEditor(Player player, int slot) {
-        // Find the correct item index based on the slot clicked
         int itemIndex = 0;
         for (int i = 0; i < gui.getSize(); i++) {
             if(gui.getItem(i) != null && !gui.getItem(i).getType().name().endsWith("_PANE") && gui.getItem(i).getType() != Material.EMERALD && gui.getItem(i).getType() != Material.BARRIER) {
@@ -148,8 +148,16 @@ public class EditorGUI implements Listener {
     @EventHandler
     public void onInventoryClick(InventoryClickEvent event) {
         Player player = (Player) event.getWhoClicked();
+        Inventory clickedInventory = event.getClickedInventory();
         
+        // --- Main Editor GUI Logic ---
         if (event.getInventory().equals(gui)) {
+            // FIXED: Prevent any interaction with the player's own inventory while the GUI is open
+            if (clickedInventory != gui) {
+                event.setCancelled(true);
+                return;
+            }
+
             event.setCancelled(true);
             
             if(event.getSlot() == 50) {
@@ -161,9 +169,9 @@ public class EditorGUI implements Listener {
 
             player.playSound(player.getLocation(), Sound.UI_BUTTON_CLICK, 1.0f, 1.0f);
             
-            if(event.isLeftClick()) {
+            if(event.getClick() == ClickType.LEFT) {
                 openItemEditor(player, event.getSlot());
-            } else if (event.isRightClick()) {
+            } else if (event.getClick() == ClickType.RIGHT) {
                  int itemIndex = 0;
                  for (int i = 0; i < gui.getSize(); i++) {
                     if(gui.getItem(i) != null && !gui.getItem(i).getType().name().endsWith("_PANE") && gui.getItem(i).getType() != Material.EMERALD && gui.getItem(i).getType() != Material.BARRIER) {
@@ -179,9 +187,21 @@ public class EditorGUI implements Listener {
             }
         }
         
+        // --- Item Specific Editor GUI Logic ---
         else if (event.getInventory().equals(editGui)) {
+            // FIXED: Prevent any interaction with the player's own inventory
+            if (clickedInventory != editGui) {
+                event.setCancelled(true);
+                return;
+            }
+            
             event.setCancelled(true);
             if (event.getCurrentItem() == null || event.getCurrentItem().getType().isAir()) return;
+
+            // FIXED: Prevent clicking the display item in the center
+            if (event.getSlot() == 4) {
+                return;
+            }
 
             player.playSound(player.getLocation(), Sound.UI_BUTTON_CLICK, 1.0f, 1.2f);
             MerchantItem itemToEdit = itemManager.getMerchantItems().get(currentlyEditingSlot);
@@ -270,5 +290,4 @@ public class EditorGUI implements Listener {
             default: return "Common";
         }
     }
-            }
-            
+                            }
