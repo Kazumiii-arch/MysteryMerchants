@@ -50,7 +50,6 @@ public class EditorGUI implements Listener {
             ItemStack displayItem = merchantItem.getItemStack().clone();
             ItemMeta meta = displayItem.getItemMeta();
             if (meta != null) {
-                // Apply rarity color to the item name
                 meta.setDisplayName(getRarityColor(merchantItem.getRarity()) + ChatColor.stripColor(meta.getDisplayName()));
                 
                 List<String> lore = meta.hasLore() ? new ArrayList<>(meta.getLore()) : new ArrayList<>();
@@ -145,7 +144,8 @@ public class EditorGUI implements Listener {
         meta.setDisplayName(name);
         if (lore != null) meta.setLore(lore);
         if (enchanted) {
-            meta.addEnchant(Enchantment.DURABILITY, 1, false);
+            // FIXED: Changed DURABILITY to the correct name, UNBREAKING.
+            meta.addEnchant(Enchantment.UNBREAKING, 1, false);
             meta.addItemFlags(ItemFlag.HIDE_ENCHANTS);
         }
         item.setItemMeta(meta);
@@ -169,4 +169,4 @@ public class EditorGUI implements Listener {
             default: return "Common";
         }
     }
-                        }
+                }
