@@ -18,6 +18,8 @@ import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemFlag;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
+// FIXED: Added the missing import for BukkitRunnable
+import org.bukkit.scheduler.BukkitRunnable;
 import java.util.Arrays;
 import java.util.List;
 import java.util.ArrayList;
@@ -33,7 +35,6 @@ public class EditorGUI implements Listener {
     public EditorGUI(MysteryMerchant plugin) {
         this.plugin = plugin;
         this.itemManager = plugin.getMerchantManager().getItemManager();
-        // Register this class as a listener so it can handle clicks
         plugin.getServer().getPluginManager().registerEvents(this, plugin);
     }
 
@@ -90,7 +91,6 @@ public class EditorGUI implements Listener {
     public void onInventoryClick(InventoryClickEvent event) {
         Player player = (Player) event.getWhoClicked();
         
-        // --- Main Editor GUI Logic ---
         if (event.getInventory().equals(gui)) {
             event.setCancelled(true);
             if (event.getCurrentItem() == null || event.getCurrentItem().getType().isAir()) return;
@@ -106,7 +106,6 @@ public class EditorGUI implements Listener {
             }
         }
         
-        // --- Item Specific Editor GUI Logic ---
         else if (event.getInventory().equals(editGui)) {
             event.setCancelled(true);
             if (event.getCurrentItem() == null || event.getCurrentItem().getType().isAir()) return;
@@ -115,21 +114,21 @@ public class EditorGUI implements Listener {
             MerchantItem itemToEdit = itemManager.getMerchantItems().get(editingSlot);
             
             switch(event.getSlot()) {
-                case 11: // Price control
+                case 11:
                     double currentPrice = itemToEdit.getPrice();
                     if (event.isLeftClick()) itemToEdit.setPrice(currentPrice + 10);
                     else if (event.isRightClick()) itemToEdit.setPrice(Math.max(0, currentPrice - 10));
                     itemManager.updateItem(editingSlot, itemToEdit);
-                    openItemEditor(player, editingSlot); // Re-open to show updated values
+                    openItemEditor(player, editingSlot);
                     return;
-                case 15: // Rarity control
+                case 15:
                     itemToEdit.setRarity(getNextRarity(itemToEdit.getRarity()));
                     itemManager.updateItem(editingSlot, itemToEdit);
-                    openItemEditor(player, editingSlot); // Re-open to show updated values
+                    openItemEditor(player, editingSlot);
                     return;
-                case 26: // Back button
+                case 26:
                     itemManager.saveItems();
-                    open(player); // Re-open the main editor
+                    open(player);
                     return;
             }
         }
@@ -137,10 +136,6 @@ public class EditorGUI implements Listener {
 
     @EventHandler
     public void onInventoryClose(InventoryCloseEvent event) {
-        // FIXED: This logic is now simplified. The listener will only be unregistered
-        // when the player is truly done with the editor. We check if the new
-        // inventory being opened is one of ours. If not, we unregister.
-        // A small delay (1 tick) is needed to allow the new inventory to open first.
         new BukkitRunnable() {
             @Override
             public void run() {
@@ -182,4 +177,4 @@ public class EditorGUI implements Listener {
             default: return "Common";
         }
     }
-                                                                       }
+}
