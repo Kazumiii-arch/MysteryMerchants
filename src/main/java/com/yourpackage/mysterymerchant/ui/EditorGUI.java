@@ -41,9 +41,11 @@ public class EditorGUI implements Listener {
 
     private void populateMainItems() {
         gui.clear();
+        // FIXED: Now correctly uses List<MerchantItem>
         List<MerchantItem> items = itemManager.getMerchantItems();
         for (int i = 0; i < items.size() && i < 54; i++) {
             MerchantItem merchantItem = items.get(i);
+            // FIXED: Extracts the ItemStack from the MerchantItem
             ItemStack displayItem = merchantItem.getItemStack().clone();
             ItemMeta meta = displayItem.getItemMeta();
             if (meta != null) {
@@ -67,18 +69,14 @@ public class EditorGUI implements Listener {
         
         editGui = Bukkit.createInventory(null, 27, "Editing: " + merchantItem.getItemStack().getType().name());
         
-        // Add the item itself for reference
         editGui.setItem(4, merchantItem.getItemStack());
 
-        // Price controls
         editGui.setItem(11, createControlButton(Material.GOLD_NUGGET, ChatColor.GOLD + "Price: $" + merchantItem.getPrice(), 
             Arrays.asList(ChatColor.GREEN + "Left-click: +$10", ChatColor.RED + "Right-click: -$10")));
         
-        // Rarity controls
         editGui.setItem(15, createControlButton(Material.DIAMOND, ChatColor.AQUA + "Rarity: " + merchantItem.getRarity(), 
             Arrays.asList(ChatColor.YELLOW + "Click to cycle rarity.")));
 
-        // Back button
         editGui.setItem(26, createControlButton(Material.BARRIER, ChatColor.RED + "Back to Main Editor", null));
         
         player.openInventory(editGui);
@@ -88,24 +86,20 @@ public class EditorGUI implements Listener {
     public void onInventoryClick(InventoryClickEvent event) {
         Player player = (Player) event.getWhoClicked();
         
-        // --- Main Editor GUI Logic ---
         if (event.getInventory().equals(gui)) {
             event.setCancelled(true);
             if (event.getCurrentItem() == null || event.getCurrentItem().getType().isAir()) return;
 
             int slot = event.getSlot();
             if (event.isLeftClick()) {
-                // Open the specific item editor
                 openItemEditor(player, slot);
             } else if (event.isRightClick()) {
-                // Remove the item
                 itemManager.removeItem(slot);
                 player.sendMessage(ChatColor.GREEN + "Item removed.");
-                populateMainItems(); // Refresh the view
+                populateMainItems();
             }
         }
         
-        // --- Item Specific Editor GUI Logic ---
         else if (event.getInventory().equals(editGui)) {
             event.setCancelled(true);
             if (event.getCurrentItem() == null || event.getCurrentItem().getType().isAir()) return;
@@ -113,7 +107,7 @@ public class EditorGUI implements Listener {
             MerchantItem itemToEdit = itemManager.getMerchantItems().get(editingSlot);
             
             switch(event.getSlot()) {
-                case 11: // Price control
+                case 11:
                     double currentPrice = itemToEdit.getPrice();
                     if (event.isLeftClick()) {
                         itemToEdit.setPrice(currentPrice + 10);
@@ -121,18 +115,17 @@ public class EditorGUI implements Listener {
                         itemToEdit.setPrice(Math.max(0, currentPrice - 10));
                     }
                     break;
-                case 15: // Rarity control
+                case 15:
                     itemToEdit.setRarity(getNextRarity(itemToEdit.getRarity()));
                     break;
-                case 26: // Back button
-                    itemManager.saveItems(); // Save changes before going back
-                    open(player); // Re-open the main editor
+                case 26:
+                    itemManager.saveItems();
+                    open(player);
                     return;
             }
             
-            // Update the item and refresh the edit GUI
             itemManager.updateItem(editingSlot, itemToEdit);
-            openItemEditor(player, editingSlot); // Re-open to show updated values
+            openItemEditor(player, editingSlot);
         }
     }
 
@@ -163,4 +156,4 @@ public class EditorGUI implements Listener {
             default: return "Common";
         }
     }
-}
+                    }
