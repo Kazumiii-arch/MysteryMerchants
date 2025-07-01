@@ -38,10 +38,10 @@ public class ShopGUI implements Listener {
     }
 
     private void populateShopItems() {
-        // FIXED: Now correctly uses List<MerchantItem>
-        List<MerchantItem> items = plugin.getMerchantManager().getMerchantItems();
+        // FIXED: This line now correctly gets the ItemManager first.
+        List<MerchantItem> items = plugin.getMerchantManager().getItemManager().getMerchantItems();
+        
         for (MerchantItem merchantItem : items) {
-            // FIXED: Extracts the ItemStack from the MerchantItem
             ItemStack shopItem = merchantItem.getItemStack().clone();
             ItemMeta meta = shopItem.getItemMeta();
             if (meta != null) {
