@@ -1,0 +1,24 @@
+# src/main/resources/plugin.yml
+name: MysteryMerchant
+main: com.yourpackage.mysterymerchant.MysteryMerchant
+# This placeholder is replaced by Gradle during the build process
+version: '${version}'
+api-version: '1.18'
+description: A mysterious merchant that sells rare, time-limited items.
+authors: [YourName]
+
+commands:
+  mysterymerchant:
+    description: "Main command for the MysteryMerchant plugin."
+    usage: "/<command> [subcommand] [arguments]"
+    aliases: [mm]
+    permission: mysterymerchant.admin
+    permission-message: "You do not have permission to use this command."
+
+permissions:
+  mysterymerchant.admin:
+    description: "Grants access to all MysteryMerchant admin commands."
+    default: op
+  mysterymerchant.use:
+    description: "Allows players to interact with the Mystery Merchant."
+    default: true
