@@ -75,7 +75,8 @@ public class Merchant {
 
     private void playDespawnEffects() {
         Location loc = merchantEntity.getLocation().add(0, 1, 0);
-        loc.getWorld().spawnParticle(Particle.SMOKE_LARGE, loc, 50, 0.5, 0.5, 0.5, 0.05);
+        // FIXED: Changed SMOKE_LARGE to LARGE_SMOKE for 1.21 compatibility
+        loc.getWorld().spawnParticle(Particle.LARGE_SMOKE, loc, 50, 0.5, 0.5, 0.5, 0.05);
         loc.getWorld().playSound(loc, Sound.ENTITY_FOX_TELEPORT, 1.0f, 1.0f);
     }
 
@@ -86,5 +87,4 @@ public class Merchant {
     public UUID getEntityId() {
         return entityId;
     }
-  }
-      
+}
