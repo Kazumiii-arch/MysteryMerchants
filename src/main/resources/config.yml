@@ -10,11 +10,9 @@ merchant:
   # The duration in minutes the merchant will stay spawned before automatically despawning.
   duration-minutes: 5
   
-  # The location where the merchant will spawn.
   # This is set automatically using the /mm setspawn command. Do not edit manually.
   spawn-location: {}
 
-  # The items the merchant has for sale.
   # This list is managed by the /mm additem and /mm editor commands.
   items: {}
 
@@ -28,4 +26,16 @@ gui:
 messages:
   merchant-spawn: "&d&lA Mysterious Merchant has arrived!"
   merchant-despawn: "&7The Mysterious Merchant has vanished..."
+
+# -- Shop Randomization Settings --
+shop-randomization:
+  # Set to true to enable random items each spawn. Set to false to always sell all items.
+  enabled: true
+  # Max number of items to show in a single spawn.
+  max-items-per-spawn: 12
+  # Chance for an item of this rarity to be included in the shop (0.0 = 0%, 1.0 = 100%).
+  chance-common: 0.85  # 85%
+  chance-rare: 0.50    # 50%
+  chance-epic: 0.25    # 25%
+  chance-legendary: 0.10 # 10%
   
