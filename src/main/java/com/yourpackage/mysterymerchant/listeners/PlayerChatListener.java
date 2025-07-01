@@ -1,6 +1,7 @@
 package com.yourpackage.mysterymerchant.listeners;
 
 import com.yourpackage.mysterymerchant.MysteryMerchant;
+import com.yourpackage.mysterymerchant.merchant.ItemManager;
 import com.yourpackage.mysterymerchant.merchant.MerchantItem;
 import com.yourpackage.mysterymerchant.ui.EditorGUI;
 import org.bukkit.ChatColor;
@@ -25,21 +26,33 @@ public class PlayerChatListener implements Listener {
     @EventHandler
     public void onPlayerChat(AsyncPlayerChatEvent event) {
         Player player = event.getPlayer();
-        if (!plugin.isPlayerEditing(player)) {
+        if (!plugin.isPlayerInEditMode(player)) {
             return;
         }
 
         // Cancel the event so the message doesn't appear in public chat
         event.setCancelled(true);
         String message = event.getMessage();
-        String editMode = plugin.getPlayerEditMode(player);
-
-        // Get the item being edited from the EditorGUI's static reference
-        MerchantItem itemToEdit = EditorGUI.getEditingItem();
-        if (itemToEdit == null) {
-            plugin.removePlayerEditing(player);
+        
+        // Handle cancellation
+        if (message.equalsIgnoreCase("cancel")) {
+            plugin.removePlayerFromEditMode(player);
+            player.sendMessage(ChatColor.RED + "Edit cancelled.");
+            // Re-open the main editor GUI on the main server thread
+            plugin.getServer().getScheduler().runTask(plugin, () -> new EditorGUI(plugin).open(player));
             return;
         }
+
+        String editMode = plugin.getPlayerEditMode(player);
+        Integer editingSlot = plugin.getPlayerEditingItemSlot(player);
+        ItemManager itemManager = plugin.getMerchantManager().getItemManager();
+
+        if (editingSlot == null) {
+            plugin.removePlayerFromEditMode(player);
+            return;
+        }
+
+        MerchantItem itemToEdit = itemManager.getMerchantItems().get(editingSlot);
 
         // Process the input based on what the player was editing
         switch (editMode.toLowerCase()) {
@@ -68,10 +81,10 @@ public class PlayerChatListener implements Listener {
                 player.sendMessage(ChatColor.GREEN + "Command added successfully!");
                 break;
         }
-
-        // Remove the player from editing mode and re-open the GUI
-        plugin.removePlayerEditing(player);
+        
+        // Save the changes, remove the player from edit mode, and re-open the GUI
+        itemManager.updateItem(editingSlot, itemToEdit);
+        plugin.removePlayerFromEditMode(player);
         plugin.getServer().getScheduler().runTask(plugin, () -> new EditorGUI(plugin).open(player));
     }
-          }
-                  
+}
