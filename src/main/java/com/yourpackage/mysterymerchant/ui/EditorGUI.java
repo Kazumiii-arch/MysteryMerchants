@@ -1,8 +1,3 @@
-
-        }
-    }
-            }
-            
 package com.yourpackage.mysterymerchant.ui;
 
 import com.yourpackage.mysterymerchant.MysteryMerchant;
