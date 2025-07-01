@@ -28,8 +28,10 @@ public class ItemManager {
                 ItemStack item = config.getItemStack(path + ".item");
                 double price = config.getDouble(path + ".price", 100.0);
                 String rarity = config.getString(path + ".rarity", "Common");
+                // NEW: Load the commands list
+                List<String> commands = config.getStringList(path + ".commands");
                 if (item != null) {
-                    merchantItems.add(new MerchantItem(item, price, rarity));
+                    merchantItems.add(new MerchantItem(item, price, rarity, commands));
                 }
             }
         }
@@ -44,14 +46,15 @@ public class ItemManager {
             config.set(path + ".item", merchantItem.getItemStack());
             config.set(path + ".price", merchantItem.getPrice());
             config.set(path + ".rarity", merchantItem.getRarity());
+            // NEW: Save the commands list
+            config.set(path + ".commands", merchantItem.getCommands());
         }
         plugin.saveConfig();
     }
 
     public void addItem(ItemStack item) {
         if (item != null && !item.getType().isAir()) {
-            // Add with default price and rarity
-            merchantItems.add(new MerchantItem(item.clone(), 100.0, "Common"));
+            merchantItems.add(new MerchantItem(item.clone(), 100.0, "Common", new ArrayList<>()));
             saveItems();
         }
     }
