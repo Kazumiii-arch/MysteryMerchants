@@ -1,9 +1,8 @@
-# src/main/resources/plugin.yml
 name: MysteryMerchant
 main: com.yourpackage.mysterymerchant.MysteryMerchant
-# This placeholder is replaced by Gradle during the build process
 version: '${version}'
-api-version: '1.18'
+# UPDATED: Now officially targeting API version 1.21
+api-version: '1.21'
 description: A mysterious merchant that sells rare, time-limited items.
 authors: [YourName]
 
@@ -22,3 +21,4 @@ permissions:
   mysterymerchant.use:
     description: "Allows players to interact with the Mystery Merchant."
     default: true
+    
