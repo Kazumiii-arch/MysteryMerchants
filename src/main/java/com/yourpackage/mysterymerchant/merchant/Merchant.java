@@ -6,6 +6,8 @@ import org.bukkit.Particle;
 import org.bukkit.Sound;
 import org.bukkit.entity.EntityType;
 import org.bukkit.entity.Villager;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 
@@ -17,10 +19,13 @@ public class Merchant {
     private UUID entityId;
     private long spawnTimestamp;
     private long durationSeconds;
+    // This list holds the specific items this merchant will sell during its lifetime.
+    private List<MerchantItem> currentStock;
 
     public Merchant(MerchantManager manager, Location spawnLocation) {
         this.manager = manager;
         this.spawnLocation = spawnLocation;
+        this.currentStock = new ArrayList<>(); // Initialize the list
     }
 
     public void spawn() {
@@ -33,6 +38,16 @@ public class Merchant {
         configureEntity();
         playSpawnEffects();
     }
+
+    // --- Methods to manage the current stock ---
+    public List<MerchantItem> getCurrentStock() {
+        return currentStock;
+    }
+
+    public void setCurrentStock(List<MerchantItem> stock) {
+        this.currentStock = stock;
+    }
+
 
     private void configureEntity() {
         if (merchantEntity == null) return;
@@ -81,4 +96,4 @@ public class Merchant {
     public UUID getEntityId() {
         return entityId;
     }
-                                 }
+}
