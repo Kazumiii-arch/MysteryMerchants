@@ -9,6 +9,7 @@ import org.bukkit.entity.Villager;
 import org.bukkit.scheduler.BukkitRunnable;
 import org.bukkit.scheduler.BukkitTask;
 import java.util.UUID;
+import java.util.concurrent.TimeUnit;
 
 public class Merchant {
 
@@ -17,6 +18,8 @@ public class Merchant {
     private Villager merchantEntity;
     private UUID entityId;
     private BukkitTask despawnTask;
+    private long spawnTimestamp; // To track spawn time
+    private long durationSeconds; // To store total duration
 
     public Merchant(MerchantManager manager, Location spawnLocation) {
         this.manager = manager;
@@ -24,6 +27,9 @@ public class Merchant {
     }
 
     public void spawn() {
+        this.spawnTimestamp = System.currentTimeMillis();
+        this.durationSeconds = manager.getPlugin().getConfig().getLong("merchant.duration-minutes", 5) * 60;
+
         spawnLocation.getChunk().load();
         this.merchantEntity = (Villager) spawnLocation.getWorld().spawnEntity(spawnLocation, EntityType.VILLAGER);
         this.entityId = merchantEntity.getUniqueId();
@@ -46,13 +52,18 @@ public class Merchant {
     }
     
     private void startDespawnTimer() {
-        long duration = manager.getPlugin().getConfig().getLong("merchant.duration-minutes", 5) * 60 * 20;
         this.despawnTask = new BukkitRunnable() {
             @Override
             public void run() {
                 manager.despawnMerchant();
             }
-        }.runTaskLater(manager.getPlugin(), duration);
+        }.runTaskLater(manager.getPlugin(), durationSeconds * 20);
+    }
+
+    public long getRemainingSeconds() {
+        long elapsedMillis = System.currentTimeMillis() - spawnTimestamp;
+        long elapsedSeconds = TimeUnit.MILLISECONDS.toSeconds(elapsedMillis);
+        return Math.max(0, durationSeconds - elapsedSeconds);
     }
 
     public void despawn(boolean withEffects) {
@@ -75,7 +86,6 @@ public class Merchant {
 
     private void playDespawnEffects() {
         Location loc = merchantEntity.getLocation().add(0, 1, 0);
-        // FIXED: Changed SMOKE_LARGE to LARGE_SMOKE for 1.21 compatibility
         loc.getWorld().spawnParticle(Particle.LARGE_SMOKE, loc, 50, 0.5, 0.5, 0.5, 0.05);
         loc.getWorld().playSound(loc, Sound.ENTITY_FOX_TELEPORT, 1.0f, 1.0f);
     }
