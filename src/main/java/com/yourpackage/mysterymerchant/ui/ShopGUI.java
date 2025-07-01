@@ -104,10 +104,10 @@ public class ShopGUI implements Listener {
                 meta.setDisplayName(ChatColor.YELLOW + "Time Remaining");
                 meta.setLore(Arrays.asList(ChatColor.WHITE + "The merchant will depart in:", ChatColor.GOLD + time));
                 timerItem.setItemMeta(meta);
-                gui.setItem(49, timerItem); // Middle of bottom row
+                gui.setItem(49, timerItem);
             }
         };
-        updateTask.runTaskTimer(plugin, 0L, 20L); // Update every second
+        updateTask.runTaskTimer(plugin, 0L, 20L);
     }
 
     @EventHandler
@@ -117,7 +117,10 @@ public class ShopGUI implements Listener {
         Player player = (Player) event.getWhoClicked();
         ItemStack clickedItem = event.getCurrentItem();
 
-        if (clickedItem == null || clickedItem.getType().isAir() || clickedItem.getType().isPane()) return;
+        // FIXED: Replaced the non-existent isPane() method with a correct check.
+        if (clickedItem == null || clickedItem.getType().isAir() || clickedItem.getType().name().endsWith("_PANE")) {
+            return;
+        }
 
         player.playSound(player.getLocation(), Sound.ENTITY_VILLAGER_TRADE, 1.0f, 1.0f);
         player.sendMessage(ChatColor.GREEN + "You purchased an item!");
