@@ -29,7 +29,7 @@ public class EditorGUI implements Listener {
     private final ItemManager itemManager;
     private Inventory gui;
     private Inventory editGui;
-    private int currentlyEditingSlot = -1;
+    private int currentlyEditingItemIndex = -1; // FIXED: This now correctly tracks the item's index in the list
 
     public EditorGUI(MysteryMerchant plugin) {
         this.plugin = plugin;
@@ -109,19 +109,10 @@ public class EditorGUI implements Listener {
         gui.setItem(50, createControlButton(Material.BARRIER, ChatColor.RED + "" + ChatColor.BOLD + "Close Editor", null, false));
     }
 
-    private void openItemEditor(Player player, int slot) {
-        int itemIndex = 0;
-        for (int i = 0; i < gui.getSize(); i++) {
-            if(gui.getItem(i) != null && !gui.getItem(i).getType().name().endsWith("_PANE") && gui.getItem(i).getType() != Material.EMERALD && gui.getItem(i).getType() != Material.BARRIER) {
-                if(i == slot) {
-                    this.currentlyEditingSlot = itemIndex;
-                    break;
-                }
-                itemIndex++;
-            }
-        }
-        
-        MerchantItem merchantItem = itemManager.getMerchantItems().get(currentlyEditingSlot);
+    // FIXED: This method now takes the item's direct index, which is more reliable.
+    private void openItemEditor(Player player, int itemIndex) {
+        this.currentlyEditingItemIndex = itemIndex;
+        MerchantItem merchantItem = itemManager.getMerchantItems().get(itemIndex);
         
         editGui = Bukkit.createInventory(null, 36, "Editing Item...");
         
@@ -145,14 +136,11 @@ public class EditorGUI implements Listener {
         Player player = (Player) event.getWhoClicked();
         Inventory clickedInventory = event.getClickedInventory();
         
-        // --- Main Editor GUI Logic ---
         if (event.getInventory().equals(gui)) {
-            // FIXED: Prevent any interaction with the player's own inventory while the GUI is open
             if (clickedInventory != gui) {
                 event.setCancelled(true);
                 return;
             }
-
             event.setCancelled(true);
             
             if(event.getSlot() == 50) {
@@ -164,48 +152,39 @@ public class EditorGUI implements Listener {
 
             player.playSound(player.getLocation(), Sound.UI_BUTTON_CLICK, 1.0f, 1.0f);
             
-            if(event.getClick() == ClickType.LEFT) {
-                openItemEditor(player, event.getSlot());
-            } else if (event.getClick() == ClickType.RIGHT) {
-                 int itemIndex = 0;
-                 for (int i = 0; i < gui.getSize(); i++) {
-                    if(gui.getItem(i) != null && !gui.getItem(i).getType().name().endsWith("_PANE") && gui.getItem(i).getType() != Material.EMERALD && gui.getItem(i).getType() != Material.BARRIER) {
-                        if(i == event.getSlot()) {
-                            itemManager.removeItem(itemIndex);
-                            player.sendMessage(ChatColor.GREEN + "Item removed.");
-                            open(player); // Re-open to refresh
-                            return;
-                        }
-                        itemIndex++;
-                    }
+            // FIXED: Calculate the item's actual index in the list based on the slot clicked.
+            int itemIndex = 0;
+            for (int i = 0; i < event.getSlot(); i++) {
+                if (gui.getItem(i) != null && !gui.getItem(i).getType().name().endsWith("_PANE") && gui.getItem(i).getType() != Material.EMERALD && gui.getItem(i).getType() != Material.BARRIER) {
+                    itemIndex++;
                 }
+            }
+
+            if(event.getClick() == ClickType.LEFT) {
+                openItemEditor(player, itemIndex);
+            } else if (event.getClick() == ClickType.RIGHT) {
+                itemManager.removeItem(itemIndex);
+                player.sendMessage(ChatColor.GREEN + "Item removed.");
+                open(player); // Re-open to refresh
             }
         }
         
-        // --- Item Specific Editor GUI Logic ---
         else if (event.getInventory().equals(editGui)) {
-            // FIXED: Prevent any interaction with the player's own inventory
             if (clickedInventory != editGui) {
                 event.setCancelled(true);
                 return;
             }
-            
             event.setCancelled(true);
-            if (event.getCurrentItem() == null || event.getCurrentItem().getType().isAir()) return;
-
-            // FIXED: Prevent clicking the display item in the center
-            if (event.getSlot() == 4) {
-                return;
-            }
+            if (event.getCurrentItem() == null || event.getCurrentItem().getType().isAir() || event.getSlot() == 4) return;
 
             player.playSound(player.getLocation(), Sound.UI_BUTTON_CLICK, 1.0f, 1.2f);
-            MerchantItem itemToEdit = itemManager.getMerchantItems().get(currentlyEditingSlot);
+            MerchantItem itemToEdit = itemManager.getMerchantItems().get(currentlyEditingItemIndex);
             
             switch(event.getSlot()) {
                 case 11: // Rename
                     player.closeInventory();
                     player.sendMessage(ChatColor.YELLOW + "Please type the new item name in chat. Use '&' for colors. Type 'cancel' to abort.");
-                    plugin.setPlayerInEditMode(player, "rename", currentlyEditingSlot);
+                    plugin.setPlayerInEditMode(player, "rename", currentlyEditingItemIndex);
                     return;
                 case 13: // Price
                     double currentPrice = itemToEdit.getPrice();
@@ -215,12 +194,12 @@ public class EditorGUI implements Listener {
                 case 15: // Add Lore
                     player.closeInventory();
                     player.sendMessage(ChatColor.YELLOW + "Please type the new lore line in chat. Type 'cancel' to abort.");
-                    plugin.setPlayerInEditMode(player, "addlore", currentlyEditingSlot);
+                    plugin.setPlayerInEditMode(player, "addlore", currentlyEditingItemIndex);
                     return;
                 case 20: // Add Command
                     player.closeInventory();
                     player.sendMessage(ChatColor.YELLOW + "Please type the command to add (without '/'). Use %player%. Type 'cancel' to abort.");
-                    plugin.setPlayerInEditMode(player, "addcommand", currentlyEditingSlot);
+                    plugin.setPlayerInEditMode(player, "addcommand", currentlyEditingItemIndex);
                     return;
                 case 22: // Rarity
                     itemToEdit.setRarity(getNextRarity(itemToEdit.getRarity()));
@@ -243,8 +222,9 @@ public class EditorGUI implements Listener {
                     open(player);
                     return;
             }
-            itemManager.updateItem(currentlyEditingSlot, itemToEdit);
-            openItemEditor(player, currentlyEditingSlot);
+            // FIXED: This logic now correctly updates and re-opens the editor for instant feedback.
+            itemManager.updateItem(currentlyEditingItemIndex, itemToEdit);
+            openItemEditor(player, currentlyEditingItemIndex);
         }
     }
 
@@ -285,4 +265,4 @@ public class EditorGUI implements Listener {
             default: return "Common";
         }
     }
-                            }
+                             }
