@@ -6,8 +6,6 @@ import org.bukkit.Particle;
 import org.bukkit.Sound;
 import org.bukkit.entity.EntityType;
 import org.bukkit.entity.Villager;
-import org.bukkit.scheduler.BukkitRunnable;
-import org.bukkit.scheduler.BukkitTask;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 
@@ -17,9 +15,8 @@ public class Merchant {
     private final Location spawnLocation;
     private Villager merchantEntity;
     private UUID entityId;
-    private BukkitTask despawnTask;
-    private long spawnTimestamp; // To track spawn time
-    private long durationSeconds; // To store total duration
+    private long spawnTimestamp;
+    private long durationSeconds;
 
     public Merchant(MerchantManager manager, Location spawnLocation) {
         this.manager = manager;
@@ -34,7 +31,6 @@ public class Merchant {
         this.merchantEntity = (Villager) spawnLocation.getWorld().spawnEntity(spawnLocation, EntityType.VILLAGER);
         this.entityId = merchantEntity.getUniqueId();
         configureEntity();
-        startDespawnTimer();
         playSpawnEffects();
     }
 
@@ -51,15 +47,6 @@ public class Merchant {
         merchantEntity.setCollidable(false);
     }
     
-    private void startDespawnTimer() {
-        this.despawnTask = new BukkitRunnable() {
-            @Override
-            public void run() {
-                manager.despawnMerchant();
-            }
-        }.runTaskLater(manager.getPlugin(), durationSeconds * 20);
-    }
-
     public long getRemainingSeconds() {
         long elapsedMillis = System.currentTimeMillis() - spawnTimestamp;
         long elapsedSeconds = TimeUnit.MILLISECONDS.toSeconds(elapsedMillis);
@@ -70,9 +57,6 @@ public class Merchant {
         if (merchantEntity != null && merchantEntity.isValid()) {
             if (withEffects) playDespawnEffects();
             merchantEntity.remove();
-        }
-        if (despawnTask != null && !despawnTask.isCancelled()) {
-            despawnTask.cancel();
         }
         this.merchantEntity = null;
         this.entityId = null;
