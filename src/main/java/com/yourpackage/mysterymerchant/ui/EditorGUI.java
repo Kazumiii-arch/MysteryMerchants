@@ -29,7 +29,7 @@ public class EditorGUI implements Listener {
     private final ItemManager itemManager;
     private Inventory gui;
     private Inventory editGui;
-    private int currentlyEditingItemIndex = -1; // FIXED: This now correctly tracks the item's index in the list
+    private int currentlyEditingItemIndex = -1;
 
     public EditorGUI(MysteryMerchant plugin) {
         this.plugin = plugin;
@@ -109,7 +109,6 @@ public class EditorGUI implements Listener {
         gui.setItem(50, createControlButton(Material.BARRIER, ChatColor.RED + "" + ChatColor.BOLD + "Close Editor", null, false));
     }
 
-    // FIXED: This method now takes the item's direct index, which is more reliable.
     private void openItemEditor(Player player, int itemIndex) {
         this.currentlyEditingItemIndex = itemIndex;
         MerchantItem merchantItem = itemManager.getMerchantItems().get(itemIndex);
@@ -133,29 +132,49 @@ public class EditorGUI implements Listener {
 
     @EventHandler
     public void onInventoryClick(InventoryClickEvent event) {
+        Inventory topInventory = event.getView().getTopInventory();
+        boolean isMainGui = topInventory.equals(gui);
+        boolean isEditGui = topInventory.equals(editGui);
+
+        if (!isMainGui && !isEditGui) {
+            return; // Not our GUI, do nothing.
+        }
+
+        // It's one of our GUIs, so we take full control. Cancel the event immediately.
+        event.setCancelled(true);
+
         Player player = (Player) event.getWhoClicked();
         Inventory clickedInventory = event.getClickedInventory();
-        
-        if (event.getInventory().equals(gui)) {
-            if (clickedInventory != gui) {
-                event.setCancelled(true);
-                return;
-            }
-            event.setCancelled(true);
-            
-            if(event.getSlot() == 50) {
+
+        // Only process clicks inside the top inventory.
+        if (!topInventory.equals(clickedInventory)) {
+            return;
+        }
+
+        ItemStack clickedItem = event.getCurrentItem();
+        if (clickedItem == null || clickedItem.getType().isAir()) {
+            return;
+        }
+
+        // --- Main Editor GUI Logic ---
+        if (isMainGui) {
+            if (clickedItem.getType().name().endsWith("_PANE")) return;
+
+            if (event.getSlot() == 50) {
                 player.closeInventory();
                 return;
             }
-            
-            if (event.getCurrentItem() == null || event.getCurrentItem().getType().isAir() || event.getCurrentItem().getType().name().endsWith("_PANE")) return;
+             if (event.getSlot() == 48) { // Info button
+                player.playSound(player.getLocation(), Sound.UI_BUTTON_CLICK, 1.0f, 1.0f);
+                return;
+            }
 
             player.playSound(player.getLocation(), Sound.UI_BUTTON_CLICK, 1.0f, 1.0f);
             
-            // FIXED: Calculate the item's actual index in the list based on the slot clicked.
             int itemIndex = 0;
             for (int i = 0; i < event.getSlot(); i++) {
-                if (gui.getItem(i) != null && !gui.getItem(i).getType().name().endsWith("_PANE") && gui.getItem(i).getType() != Material.EMERALD && gui.getItem(i).getType() != Material.BARRIER) {
+                ItemStack itemInSlot = gui.getItem(i);
+                if (itemInSlot != null && !itemInSlot.getType().name().endsWith("_PANE") && itemInSlot.getType() != Material.EMERALD && itemInSlot.getType() != Material.BARRIER) {
                     itemIndex++;
                 }
             }
@@ -165,17 +184,13 @@ public class EditorGUI implements Listener {
             } else if (event.getClick() == ClickType.RIGHT) {
                 itemManager.removeItem(itemIndex);
                 player.sendMessage(ChatColor.GREEN + "Item removed.");
-                open(player); // Re-open to refresh
+                open(player);
             }
         }
         
-        else if (event.getInventory().equals(editGui)) {
-            if (clickedInventory != editGui) {
-                event.setCancelled(true);
-                return;
-            }
-            event.setCancelled(true);
-            if (event.getCurrentItem() == null || event.getCurrentItem().getType().isAir() || event.getSlot() == 4) return;
+        // --- Item Specific Editor GUI Logic ---
+        else if (isEditGui) {
+            if (event.getSlot() == 4) return; // Ignore clicks on the display item
 
             player.playSound(player.getLocation(), Sound.UI_BUTTON_CLICK, 1.0f, 1.2f);
             MerchantItem itemToEdit = itemManager.getMerchantItems().get(currentlyEditingItemIndex);
@@ -221,8 +236,9 @@ public class EditorGUI implements Listener {
                     itemManager.saveItems();
                     open(player);
                     return;
+                default:
+                    return; // Clicked on an empty slot or something unexpected
             }
-            // FIXED: This logic now correctly updates and re-opens the editor for instant feedback.
             itemManager.updateItem(currentlyEditingItemIndex, itemToEdit);
             openItemEditor(player, currentlyEditingItemIndex);
         }
@@ -265,4 +281,5 @@ public class EditorGUI implements Listener {
             default: return "Common";
         }
     }
-                             }
+    }
+                 
