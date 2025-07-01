@@ -33,6 +33,7 @@ public class EditorGUI implements Listener {
     public EditorGUI(MysteryMerchant plugin) {
         this.plugin = plugin;
         this.itemManager = plugin.getMerchantManager().getItemManager();
+        // Register this class as a listener so it can handle clicks
         plugin.getServer().getPluginManager().registerEvents(this, plugin);
     }
 
@@ -89,6 +90,7 @@ public class EditorGUI implements Listener {
     public void onInventoryClick(InventoryClickEvent event) {
         Player player = (Player) event.getWhoClicked();
         
+        // --- Main Editor GUI Logic ---
         if (event.getInventory().equals(gui)) {
             event.setCancelled(true);
             if (event.getCurrentItem() == null || event.getCurrentItem().getType().isAir()) return;
@@ -104,6 +106,7 @@ public class EditorGUI implements Listener {
             }
         }
         
+        // --- Item Specific Editor GUI Logic ---
         else if (event.getInventory().equals(editGui)) {
             event.setCancelled(true);
             if (event.getCurrentItem() == null || event.getCurrentItem().getType().isAir()) return;
@@ -112,30 +115,41 @@ public class EditorGUI implements Listener {
             MerchantItem itemToEdit = itemManager.getMerchantItems().get(editingSlot);
             
             switch(event.getSlot()) {
-                case 11:
+                case 11: // Price control
                     double currentPrice = itemToEdit.getPrice();
                     if (event.isLeftClick()) itemToEdit.setPrice(currentPrice + 10);
                     else if (event.isRightClick()) itemToEdit.setPrice(Math.max(0, currentPrice - 10));
-                    break;
-                case 15:
+                    itemManager.updateItem(editingSlot, itemToEdit);
+                    openItemEditor(player, editingSlot); // Re-open to show updated values
+                    return;
+                case 15: // Rarity control
                     itemToEdit.setRarity(getNextRarity(itemToEdit.getRarity()));
-                    break;
-                case 26:
+                    itemManager.updateItem(editingSlot, itemToEdit);
+                    openItemEditor(player, editingSlot); // Re-open to show updated values
+                    return;
+                case 26: // Back button
                     itemManager.saveItems();
-                    open(player);
+                    open(player); // Re-open the main editor
                     return;
             }
-            
-            itemManager.updateItem(editingSlot, itemToEdit);
-            openItemEditor(player, editingSlot);
         }
     }
 
     @EventHandler
     public void onInventoryClose(InventoryCloseEvent event) {
-        if (event.getInventory().equals(gui) || event.getInventory().equals(editGui)) {
-            HandlerList.unregisterAll(this);
-        }
+        // FIXED: This logic is now simplified. The listener will only be unregistered
+        // when the player is truly done with the editor. We check if the new
+        // inventory being opened is one of ours. If not, we unregister.
+        // A small delay (1 tick) is needed to allow the new inventory to open first.
+        new BukkitRunnable() {
+            @Override
+            public void run() {
+                Inventory currentOpen = event.getPlayer().getOpenInventory().getTopInventory();
+                if (!currentOpen.equals(gui) && !currentOpen.equals(editGui)) {
+                    HandlerList.unregisterAll(EditorGUI.this);
+                }
+            }
+        }.runTaskLater(plugin, 1L);
     }
 
     private ItemStack createControlButton(Material material, String name, List<String> lore, boolean enchanted) {
@@ -144,7 +158,6 @@ public class EditorGUI implements Listener {
         meta.setDisplayName(name);
         if (lore != null) meta.setLore(lore);
         if (enchanted) {
-            // FIXED: Changed DURABILITY to the correct name, UNBREAKING.
             meta.addEnchant(Enchantment.UNBREAKING, 1, false);
             meta.addItemFlags(ItemFlag.HIDE_ENCHANTS);
         }
@@ -169,4 +182,4 @@ public class EditorGUI implements Listener {
             default: return "Common";
         }
     }
-                }
+                                                                       }
