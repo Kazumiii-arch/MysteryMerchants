@@ -5,17 +5,20 @@ plugins {
     id("com.github.johnrengelman.shadow") version "8.1.1"
 }
 
-group = "com.yourpackage" // Change this to your package name
-version = "1.1.0-SNAPSHOT" // Increased version to reflect the update
+group = "com.yourpackage"
+version = "1.2.0-SNAPSHOT" // Version reflects the addition of Tier 1 features
 
 repositories {
     mavenCentral()
     maven { url = uri("https://repo.papermc.io/repository/maven-public/") }
+    // Repository for the Vault API
+    maven { url = uri("https://jitpack.io") }
 }
 
 dependencies {
-    // UPDATED: Now using the Paper API for Minecraft 1.21
     compileOnly("io.papermc.paper:paper-api:1.21-R0.1-SNAPSHOT")
+    // The Vault API dependency
+    compileOnly("com.github.MilkBowl:VaultAPI:1.7")
 }
 
 java {
