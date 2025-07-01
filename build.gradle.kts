@@ -1,10 +1,12 @@
+// build.gradle.kts
+
 plugins {
     id("java")
     id("com.github.johnrengelman.shadow") version "8.1.1"
 }
 
 group = "com.yourpackage" // Change this to your package name
-version = "1.0.0-SNAPSHOT" // Your plugin version
+version = "1.1.0-SNAPSHOT" // Increased version to reflect the update
 
 repositories {
     mavenCentral()
@@ -12,13 +14,13 @@ repositories {
 }
 
 dependencies {
-    // Paper API for Minecraft 1.20.4. Change the version if needed.
-    compileOnly("io.papermc.paper:paper-api:1.20.4-R0.1-SNAPSHOT")
+    // UPDATED: Now using the Paper API for Minecraft 1.21
+    compileOnly("io.papermc.paper:paper-api:1.21-R0.1-SNAPSHOT")
 }
 
 java {
-    // Target Java 17, required for modern Minecraft
-    toolchain.languageVersion.set(JavaLanguageVersion.of(17))
+    // Target Java 21, which is recommended for Minecraft 1.21+
+    toolchain.languageVersion.set(JavaLanguageVersion.of(21))
 }
 
 tasks {
