@@ -1,84 +1,79 @@
-package com.yourpackage.mysterymerchant.merchant;
+package com.yourpackage.mysterymerchant;
 
-import org.bukkit.ChatColor;
-import org.bukkit.Location;
-import org.bukkit.Particle;
-import org.bukkit.Sound;
-import org.bukkit.entity.EntityType;
-import org.bukkit.entity.Villager;
+import com.yourpackage.mysterymerchant.commands.CommandManager;
+import com.yourpackage.mysterymerchant.listeners.PlayerChatListener;
+import com.yourpackage.mysterymerchant.listeners.PlayerInteractionListener;
+import com.yourpackage.mysterymerchant.merchant.Merchant;
+import com.yourpackage.mysterymerchant.merchant.MerchantManager;
+import org.bukkit.entity.Player;
+import org.bukkit.plugin.java.JavaPlugin;
+
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Objects;
 import java.util.UUID;
-import java.util.concurrent.TimeUnit;
 
-public class Merchant {
+public final class MysteryMerchant extends JavaPlugin {
 
-    private final MerchantManager manager;
-    private final Location spawnLocation;
-    private Villager merchantEntity;
-    private UUID entityId;
-    private long spawnTimestamp;
-    private long durationSeconds;
+    private static MysteryMerchant instance;
+    private MerchantManager merchantManager;
+    
+    // NEW: A map to track what players are editing via chat
+    // The String will represent the type of edit (e.g., "rename", "addlore", "addcommand")
+    private final Map<UUID, String> playerEditorMap = new HashMap<>();
 
-    public Merchant(MerchantManager manager, Location spawnLocation) {
-        this.manager = manager;
-        this.spawnLocation = spawnLocation;
+    @Override
+    public void onEnable() {
+        instance = this;
+        saveDefaultConfig();
+        merchantManager = new MerchantManager(this);
+
+        try {
+            Objects.requireNonNull(getCommand("mysterymerchant")).setExecutor(new CommandManager(this));
+        } catch (NullPointerException e) {
+            getLogger().severe("Could not register the 'mysterymerchant' command!");
+            getServer().getPluginManager().disablePlugin(this);
+            return;
+        }
+
+        getServer().getPluginManager().registerEvents(new PlayerInteractionListener(this), this);
+        // NEW: Register the listener that will handle chat input for the editor
+        getServer().getPluginManager().registerEvents(new PlayerChatListener(this), this);
+        getLogger().info("MysteryMerchant has been enabled successfully!");
     }
 
-    public void spawn() {
-        this.spawnTimestamp = System.currentTimeMillis();
-        this.durationSeconds = manager.getPlugin().getConfig().getLong("merchant.duration-minutes", 5) * 60;
-
-        spawnLocation.getChunk().load();
-        this.merchantEntity = (Villager) spawnLocation.getWorld().spawnEntity(spawnLocation, EntityType.VILLAGER);
-        this.entityId = merchantEntity.getUniqueId();
-        configureEntity();
-        playSpawnEffects();
+    @Override
+    public void onDisable() {
+        if (merchantManager != null && merchantManager.getActiveMerchant() != null && merchantManager.getActiveMerchant().isSpawned()) {
+            merchantManager.despawnMerchant();
+            getLogger().info("Mystery Merchant has been despawned due to server shutdown.");
+        }
+        saveConfig();
+        getLogger().info("MysteryMerchant has been disabled.");
     }
 
-    private void configureEntity() {
-        if (merchantEntity == null) return;
-        String name = ChatColor.translateAlternateColorCodes('&', manager.getPlugin().getConfig().getString("merchant.name", "&5&lMystery Merchant"));
-        merchantEntity.setCustomName(name);
-        merchantEntity.setCustomNameVisible(true);
-        merchantEntity.setProfession(Villager.Profession.NITWIT);
-        merchantEntity.setVillagerType(Villager.Type.SWAMP);
-        merchantEntity.setAI(false);
-        merchantEntity.setSilent(true);
-        merchantEntity.setInvulnerable(true);
-        merchantEntity.setCollidable(false);
+    // NEW: Methods to manage the player editor state
+    public void setPlayerEditing(Player player, String editType) {
+        playerEditorMap.put(player.getUniqueId(), editType);
+    }
+
+    public void removePlayerEditing(Player player) {
+        playerEditorMap.remove(player.getUniqueId());
+    }
+
+    public String getPlayerEditMode(Player player) {
+        return playerEditorMap.get(player.getUniqueId());
     }
     
-    public long getRemainingSeconds() {
-        long elapsedMillis = System.currentTimeMillis() - spawnTimestamp;
-        long elapsedSeconds = TimeUnit.MILLISECONDS.toSeconds(elapsedMillis);
-        return Math.max(0, durationSeconds - elapsedSeconds);
+    public boolean isPlayerEditing(Player player) {
+        return playerEditorMap.containsKey(player.getUniqueId());
     }
 
-    public void despawn(boolean withEffects) {
-        if (merchantEntity != null && merchantEntity.isValid()) {
-            if (withEffects) playDespawnEffects();
-            merchantEntity.remove();
-        }
-        this.merchantEntity = null;
-        this.entityId = null;
+    public static MysteryMerchant getInstance() {
+        return instance;
     }
 
-    private void playSpawnEffects() {
-        Location loc = merchantEntity.getLocation().add(0, 1, 0);
-        loc.getWorld().spawnParticle(Particle.PORTAL, loc, 100, 0.5, 0.5, 0.5, 0.1);
-        loc.getWorld().playSound(loc, Sound.ENTITY_ENDERMAN_TELEPORT, 1.0f, 0.5f);
-    }
-
-    private void playDespawnEffects() {
-        Location loc = merchantEntity.getLocation().add(0, 1, 0);
-        loc.getWorld().spawnParticle(Particle.LARGE_SMOKE, loc, 50, 0.5, 0.5, 0.5, 0.05);
-        loc.getWorld().playSound(loc, Sound.ENTITY_FOX_TELEPORT, 1.0f, 1.0f);
-    }
-
-    public boolean isSpawned() {
-        return merchantEntity != null && merchantEntity.isValid();
-    }
-
-    public UUID getEntityId() {
-        return entityId;
+    public MerchantManager getMerchantManager() {
+        return merchantManager;
     }
 }
