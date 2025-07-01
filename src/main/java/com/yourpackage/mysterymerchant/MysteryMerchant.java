@@ -17,7 +17,9 @@ public final class MysteryMerchant extends JavaPlugin {
     private static MysteryMerchant instance;
     private MerchantManager merchantManager;
     
-    private final Map<UUID, String> playerEditorMap = new HashMap<>();
+    // Maps to track what a player is currently editing via chat
+    private final Map<UUID, String> playerEditModeMap = new HashMap<>();
+    private final Map<UUID, Integer> playerEditingItemSlotMap = new HashMap<>();
 
     @Override
     public void onEnable() {
@@ -48,20 +50,27 @@ public final class MysteryMerchant extends JavaPlugin {
         getLogger().info("MysteryMerchant has been disabled.");
     }
 
-    public void setPlayerEditing(Player player, String editType) {
-        playerEditorMap.put(player.getUniqueId(), editType);
+    // --- Methods to manage the player's editing state ---
+    public void setPlayerInEditMode(Player player, String editType, int itemSlot) {
+        playerEditModeMap.put(player.getUniqueId(), editType);
+        playerEditingItemSlotMap.put(player.getUniqueId(), itemSlot);
     }
 
-    public void removePlayerEditing(Player player) {
-        playerEditorMap.remove(player.getUniqueId());
+    public void removePlayerFromEditMode(Player player) {
+        playerEditModeMap.remove(player.getUniqueId());
+        playerEditingItemSlotMap.remove(player.getUniqueId());
     }
 
     public String getPlayerEditMode(Player player) {
-        return playerEditorMap.get(player.getUniqueId());
+        return playerEditModeMap.get(player.getUniqueId());
     }
     
-    public boolean isPlayerEditing(Player player) {
-        return playerEditorMap.containsKey(player.getUniqueId());
+    public Integer getPlayerEditingItemSlot(Player player) {
+        return playerEditingItemSlotMap.get(player.getUniqueId());
+    }
+    
+    public boolean isPlayerInEditMode(Player player) {
+        return playerEditModeMap.containsKey(player.getUniqueId());
     }
 
     public static MysteryMerchant getInstance() {
