@@ -38,4 +38,20 @@ shop-randomization:
   chance-rare: 0.50    # 50%
   chance-epic: 0.25    # 25%
   chance-legendary: 0.10 # 10%
+
+# -- Automatic Spawning Settings --
+autospawn:
+  # Set to true to enable the automatic spawning timer.
+  enabled: false
+  # The interval in hours between automatic spawns.
+  interval-hours: 4
+
+# -- Boss Bar Settings --
+boss-bar:
+  # Set to true to show a server-wide Boss Bar when the merchant is active.
+  enabled: true
+  # The title of the Boss Bar.
+  title: "&5&lA Mysterious Merchant has arrived!"
+  # The color of the Boss Bar. Valid colors: PINK, BLUE, RED, GREEN, YELLOW, PURPLE, WHITE
+  color: "PURPLE"
   
