@@ -1,6 +1,7 @@
 package com.yourpackage.mysterymerchant;
 
 import com.yourpackage.mysterymerchant.commands.CommandManager;
+import com.yourpackage.mysterymerchant.economy.EconomyManager;
 import com.yourpackage.mysterymerchant.listeners.PlayerChatListener;
 import com.yourpackage.mysterymerchant.listeners.PlayerInteractionListener;
 import com.yourpackage.mysterymerchant.merchant.MerchantManager;
@@ -16,6 +17,7 @@ public final class MysteryMerchant extends JavaPlugin {
 
     private static MysteryMerchant instance;
     private MerchantManager merchantManager;
+    private EconomyManager economyManager;
     
     // Maps to track what a player is currently editing via chat
     private final Map<UUID, String> playerEditModeMap = new HashMap<>();
@@ -25,6 +27,9 @@ public final class MysteryMerchant extends JavaPlugin {
     public void onEnable() {
         instance = this;
         saveDefaultConfig();
+        
+        // Initialize managers
+        economyManager = new EconomyManager(this);
         merchantManager = new MerchantManager(this);
 
         try {
@@ -73,11 +78,16 @@ public final class MysteryMerchant extends JavaPlugin {
         return playerEditModeMap.containsKey(player.getUniqueId());
     }
 
+    // --- Getters for main components ---
     public static MysteryMerchant getInstance() {
         return instance;
     }
 
     public MerchantManager getMerchantManager() {
         return merchantManager;
+    }
+    
+    public EconomyManager getEconomyManager() {
+        return economyManager;
     }
 }
