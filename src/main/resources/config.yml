@@ -1,0 +1,31 @@
+# ---------------------------------------------------- #
+#              MysteryMerchant Configuration           #
+# ---------------------------------------------------- #
+
+# -- Merchant Settings --
+merchant:
+  # The name displayed above the merchant's head. Use '&' for color codes.
+  name: "&5&lMystery Merchant"
+  
+  # The duration in minutes the merchant will stay spawned before automatically despawning.
+  duration-minutes: 5
+  
+  # The location where the merchant will spawn.
+  # This is set automatically using the /mm setspawn command. Do not edit manually.
+  spawn-location: {}
+
+  # The items the merchant has for sale.
+  # This list is managed by the /mm additem and /mm editor commands.
+  items: {}
+
+# -- GUI Settings --
+gui:
+  # The title of the shop GUI that players see.
+  title: "&5&lMysterious Wares"
+
+# -- Messages --
+# Customize the broadcast messages for merchant events.
+messages:
+  merchant-spawn: "&d&lA Mysterious Merchant has arrived!"
+  merchant-despawn: "&7The Mysterious Merchant has vanished..."
+  
