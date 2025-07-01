@@ -18,7 +18,6 @@ import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemFlag;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
-import org.bukkit.scheduler.BukkitRunnable;
 import java.util.Arrays;
 import java.util.List;
 import java.util.ArrayList;
@@ -38,52 +37,57 @@ public class EditorGUI implements Listener {
     }
 
     public void open(Player player) {
-        // NEW: More stylish title
         String title = ChatColor.translateAlternateColorCodes('&', "&5&lMystery Merchant &8- &dEditor");
         gui = Bukkit.createInventory(null, 54, title);
         
-        fillBorders(); // NEW: Add a decorative border
+        fillBorders();
         populateMainItems();
         
         player.openInventory(gui);
     }
 
+    // FIXED: The logic for populating items has been completely rewritten to be efficient and prevent loops.
     private void populateMainItems() {
         List<MerchantItem> items = itemManager.getMerchantItems();
-        // The loop now starts at 10 and ends at 43 to place items inside the border
-        for (int i = 0; i < items.size() && i < 36; i++) {
-            int slot = i + 9; // Offset to start after the first row
-             if (slot % 9 == 0 || (slot + 1) % 9 == 0) { // Skip border slots
-                if(slot % 9 == 0) i--; // adjust counter
-                continue;
-            }
+        int itemIndex = 0;
 
-            MerchantItem merchantItem = items.get(i);
-            ItemStack displayItem = merchantItem.getItemStack().clone();
-            ItemMeta meta = displayItem.getItemMeta();
-            if (meta != null) {
-                meta.setDisplayName(getRarityColor(merchantItem.getRarity()) + ChatColor.stripColor(meta.getDisplayName()));
-                
-                List<String> lore = meta.hasLore() ? new ArrayList<>(meta.getLore()) : new ArrayList<>();
-                lore.add("");
-                lore.add(ChatColor.GOLD + "Price: " + ChatColor.WHITE + "$" + merchantItem.getPrice());
-                lore.add(getRarityColor(merchantItem.getRarity()) + "Rarity: " + ChatColor.WHITE + merchantItem.getRarity());
-                
-                if (merchantItem.getCommands() != null && !merchantItem.getCommands().isEmpty()) {
-                    lore.add(ChatColor.LIGHT_PURPLE + "Commands: " + ChatColor.WHITE + merchantItem.getCommands().size());
+        // Loop through all GUI slots
+        for (int slot = 0; slot < gui.getSize(); slot++) {
+            // Check if the current slot is an empty, non-border slot
+            if (gui.getItem(slot) == null) {
+                if (itemIndex < items.size()) {
+                    // We have an item to place
+                    MerchantItem merchantItem = items.get(itemIndex);
+                    ItemStack displayItem = merchantItem.getItemStack().clone();
+                    ItemMeta meta = displayItem.getItemMeta();
+                    if (meta != null) {
+                        meta.setDisplayName(getRarityColor(merchantItem.getRarity()) + ChatColor.stripColor(meta.getDisplayName()));
+                        
+                        List<String> lore = meta.hasLore() ? new ArrayList<>(meta.getLore()) : new ArrayList<>();
+                        lore.add("");
+                        lore.add(ChatColor.GOLD + "Price: " + ChatColor.WHITE + "$" + merchantItem.getPrice());
+                        lore.add(getRarityColor(merchantItem.getRarity()) + "Rarity: " + ChatColor.WHITE + merchantItem.getRarity());
+                        
+                        if (merchantItem.getCommands() != null && !merchantItem.getCommands().isEmpty()) {
+                            lore.add(ChatColor.LIGHT_PURPLE + "Commands: " + ChatColor.WHITE + merchantItem.getCommands().size());
+                        }
+
+                        lore.add("");
+                        lore.add(ChatColor.YELLOW + "▶ Left-click to edit this item.");
+                        lore.add(ChatColor.RED + "✖ Right-click to remove.");
+                        meta.setLore(lore);
+                        displayItem.setItemMeta(meta);
+                    }
+                    gui.setItem(slot, displayItem);
+                    itemIndex++; // Move to the next item
+                } else {
+                    // No more items to place, we can stop
+                    break;
                 }
-
-                lore.add("");
-                lore.add(ChatColor.YELLOW + "▶ Left-click to edit this item.");
-                lore.add(ChatColor.RED + "✖ Right-click to remove.");
-                meta.setLore(lore);
-                displayItem.setItemMeta(meta);
             }
-            gui.setItem(slot, displayItem);
         }
     }
     
-    // NEW: Method to create a decorative border
     private void fillBorders() {
         ItemStack darkPane = new ItemStack(Material.BLACK_STAINED_GLASS_PANE);
         ItemMeta darkMeta = darkPane.getItemMeta();
@@ -105,15 +109,22 @@ public class EditorGUI implements Listener {
             }
         }
         
-        // Add informational items
         gui.setItem(48, createControlButton(Material.EMERALD, ChatColor.GREEN + "How to Add Items", Arrays.asList(ChatColor.GRAY + "Hold an item in your hand and type:", ChatColor.WHITE + "/mm additem"), false));
         gui.setItem(50, createControlButton(Material.BARRIER, ChatColor.RED + "" + ChatColor.BOLD + "Close Editor", null, false));
     }
 
-
     private void openItemEditor(Player player, int slot) {
-        this.currentlyEditingSlot = slot - 9; // Adjust for the offset
-        if(slot % 9 == 0 || (slot+1) % 9 == 0) this.currentlyEditingSlot++;
+        // Find the correct item index based on the slot clicked
+        int itemIndex = 0;
+        for (int i = 0; i < gui.getSize(); i++) {
+            if(gui.getItem(i) != null && !gui.getItem(i).getType().name().endsWith("_PANE") && gui.getItem(i).getType() != Material.EMERALD && gui.getItem(i).getType() != Material.BARRIER) {
+                if(i == slot) {
+                    this.currentlyEditingSlot = itemIndex;
+                    break;
+                }
+                itemIndex++;
+            }
+        }
         
         MerchantItem merchantItem = itemManager.getMerchantItems().get(currentlyEditingSlot);
         
@@ -141,7 +152,6 @@ public class EditorGUI implements Listener {
         if (event.getInventory().equals(gui)) {
             event.setCancelled(true);
             
-            // Handle close button
             if(event.getSlot() == 50) {
                 player.closeInventory();
                 return;
@@ -150,8 +160,23 @@ public class EditorGUI implements Listener {
             if (event.getCurrentItem() == null || event.getCurrentItem().getType().isAir() || event.getCurrentItem().getType().name().endsWith("_PANE")) return;
 
             player.playSound(player.getLocation(), Sound.UI_BUTTON_CLICK, 1.0f, 1.0f);
-            int slot = event.getSlot();
-            openItemEditor(player, slot);
+            
+            if(event.isLeftClick()) {
+                openItemEditor(player, event.getSlot());
+            } else if (event.isRightClick()) {
+                 int itemIndex = 0;
+                 for (int i = 0; i < gui.getSize(); i++) {
+                    if(gui.getItem(i) != null && !gui.getItem(i).getType().name().endsWith("_PANE") && gui.getItem(i).getType() != Material.EMERALD && gui.getItem(i).getType() != Material.BARRIER) {
+                        if(i == event.getSlot()) {
+                            itemManager.removeItem(itemIndex);
+                            player.sendMessage(ChatColor.GREEN + "Item removed.");
+                            open(player); // Re-open to refresh
+                            return;
+                        }
+                        itemIndex++;
+                    }
+                }
+            }
         }
         
         else if (event.getInventory().equals(editGui)) {
@@ -245,5 +270,5 @@ public class EditorGUI implements Listener {
             default: return "Common";
         }
     }
-    }
-                    
+            }
+            
