@@ -117,8 +117,8 @@ public class ShopGUI implements Listener {
         Player player = (Player) event.getWhoClicked();
         ItemStack clickedItem = event.getCurrentItem();
 
-        // FIXED: Replaced the non-existent isPane() method with a correct check.
-        if (clickedItem == null || clickedItem.getType().isAir() || clickedItem.getType().name().endsWith("_PANE")) {
+        // FIXED: Now also checks for the CLOCK material
+        if (clickedItem == null || clickedItem.getType().isAir() || clickedItem.getType().name().endsWith("_PANE") || clickedItem.getType() == Material.CLOCK) {
             return;
         }
 
