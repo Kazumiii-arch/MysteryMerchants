@@ -1,6 +1,7 @@
 package com.yourpackage.mysterymerchant.ui;
 
 import com.yourpackage.mysterymerchant.MysteryMerchant;
+import com.yourpackage.mysterymerchant.economy.EconomyManager;
 import com.yourpackage.mysterymerchant.merchant.Merchant;
 import com.yourpackage.mysterymerchant.merchant.MerchantItem;
 import org.bukkit.Bukkit;
@@ -45,12 +46,11 @@ public class ShopGUI implements Listener {
     }
 
     private void populateShopItems() {
-        // Get the active merchant to access its specific stock for this spawn
         Merchant activeMerchant = plugin.getMerchantManager().getActiveMerchant();
         if (activeMerchant == null) return;
 
-        // Get the stock from the active merchant, not the item manager's master list
         List<MerchantItem> items = activeMerchant.getCurrentStock();
+        EconomyManager econ = plugin.getEconomyManager();
         
         for (MerchantItem merchantItem : items) {
             ItemStack shopItem = merchantItem.getItemStack().clone();
@@ -60,7 +60,7 @@ public class ShopGUI implements Listener {
                 
                 List<String> lore = meta.hasLore() ? meta.getLore().stream().map(line -> ChatColor.translateAlternateColorCodes('&', line)).collect(Collectors.toList()) : new ArrayList<>();
                 lore.add("");
-                lore.add(ChatColor.GOLD + "Price: " + ChatColor.WHITE + "$" + merchantItem.getPrice());
+                lore.add(ChatColor.GOLD + "Price: " + ChatColor.WHITE + (econ.hasEconomy() ? econ.format(merchantItem.getPrice()) : "$" + merchantItem.getPrice()));
                 lore.add(getRarityColor(merchantItem.getRarity()) + "Rarity: " + ChatColor.WHITE + merchantItem.getRarity());
                 
                 if (merchantItem.getCommands() != null && !merchantItem.getCommands().isEmpty()) {
@@ -137,9 +137,50 @@ public class ShopGUI implements Listener {
         Merchant activeMerchant = plugin.getMerchantManager().getActiveMerchant();
         if (activeMerchant == null) return;
 
-        // Find the corresponding MerchantItem from the current merchant's stock
-        MerchantItem clickedMerchantItem = null;
-        for(MerchantItem item : activeMerchant.getCurrentStock()){
+        MerchantItem clickedMerchantItem = findClickedMerchantItem(clickedItem, activeMerchant.getCurrentStock());
+
+        if(clickedMerchantItem == null) {
+            player.sendMessage(ChatColor.RED + "An error occurred trying to purchase this item.");
+            return;
+        }
+
+        EconomyManager econ = plugin.getEconomyManager();
+        if (!econ.hasEconomy()) {
+            player.sendMessage(ChatColor.RED + "The server's economy is not active!");
+            player.closeInventory();
+            return;
+        }
+
+        double price = clickedMerchantItem.getPrice();
+        if (!econ.hasEnough(player, price)) {
+            player.sendMessage(ChatColor.RED + "You don't have enough money to purchase this!");
+            player.playSound(player.getLocation(), Sound.ENTITY_VILLAGER_NO, 1.0f, 1.0f);
+            player.closeInventory();
+            return;
+        }
+
+        if (!econ.withdraw(player, price)) {
+            player.closeInventory();
+            return;
+        }
+
+        player.playSound(player.getLocation(), Sound.ENTITY_VILLAGER_TRADE, 1.0f, 1.0f);
+
+        if (clickedMerchantItem.getCommands() != null && !clickedMerchantItem.getCommands().isEmpty()) {
+            player.sendMessage(ChatColor.GREEN + "You purchased a special perk for " + econ.format(price) + "!");
+            for (String command : clickedMerchantItem.getCommands()) {
+                Bukkit.dispatchCommand(Bukkit.getConsoleSender(), command.replace("%player%", player.getName()));
+            }
+        } else {
+            player.sendMessage(ChatColor.GREEN + "You purchased an item for " + econ.format(price) + "!");
+            player.getInventory().addItem(clickedMerchantItem.getItemStack().clone());
+        }
+        
+        player.closeInventory();
+    }
+
+    private MerchantItem findClickedMerchantItem(ItemStack clickedItem, List<MerchantItem> stock) {
+        for(MerchantItem item : stock){
             ItemStack cleanClickedItem = clickedItem.clone();
             ItemMeta cleanMeta = cleanClickedItem.getItemMeta();
             if (cleanMeta != null && cleanMeta.hasLore()) {
@@ -150,30 +191,10 @@ public class ShopGUI implements Listener {
             cleanClickedItem.setItemMeta(cleanMeta);
 
             if(item.getItemStack().isSimilar(cleanClickedItem)){
-                clickedMerchantItem = item;
-                break;
+                return item;
             }
         }
-
-        if(clickedMerchantItem == null) {
-            player.sendMessage(ChatColor.RED + "An error occurred trying to purchase this item.");
-            return;
-        }
-
-        // In a real plugin, you would check if the player has enough money here
-        player.playSound(player.getLocation(), Sound.ENTITY_VILLAGER_TRADE, 1.0f, 1.0f);
-
-        if (clickedMerchantItem.getCommands() != null && !clickedMerchantItem.getCommands().isEmpty()) {
-            player.sendMessage(ChatColor.GREEN + "You purchased a special perk!");
-            for (String command : clickedMerchantItem.getCommands()) {
-                Bukkit.dispatchCommand(Bukkit.getConsoleSender(), command.replace("%player%", player.getName()));
-            }
-        } else {
-            player.sendMessage(ChatColor.GREEN + "You purchased an item!");
-            player.getInventory().addItem(clickedMerchantItem.getItemStack().clone());
-        }
-        
-        player.closeInventory();
+        return null;
     }
 
     private ChatColor getRarityColor(String rarity) {
@@ -192,4 +213,5 @@ public class ShopGUI implements Listener {
             HandlerList.unregisterAll(this);
         }
     }
-}
+                             }
+                         
