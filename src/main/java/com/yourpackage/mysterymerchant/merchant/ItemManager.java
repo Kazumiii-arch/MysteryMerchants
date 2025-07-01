@@ -6,12 +6,11 @@ import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.inventory.ItemStack;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Set;
 
 public class ItemManager {
 
     private final MysteryMerchant plugin;
-    private final List<ItemStack> merchantItems;
+    private final List<MerchantItem> merchantItems;
 
     public ItemManager(MysteryMerchant plugin) {
         this.plugin = plugin;
@@ -25,9 +24,12 @@ public class ItemManager {
         ConfigurationSection itemsSection = config.getConfigurationSection("merchant.items");
         if (itemsSection != null) {
             for (String key : itemsSection.getKeys(false)) {
-                ItemStack item = config.getItemStack("merchant.items." + key + ".item");
+                String path = "merchant.items." + key;
+                ItemStack item = config.getItemStack(path + ".item");
+                double price = config.getDouble(path + ".price", 100.0);
+                String rarity = config.getString(path + ".rarity", "Common");
                 if (item != null) {
-                    merchantItems.add(item);
+                    merchantItems.add(new MerchantItem(item, price, rarity));
                 }
             }
         }
@@ -37,14 +39,26 @@ public class ItemManager {
         FileConfiguration config = plugin.getConfig();
         config.set("merchant.items", null); 
         for (int i = 0; i < merchantItems.size(); i++) {
-            config.set("merchant.items." + i + ".item", merchantItems.get(i));
+            MerchantItem merchantItem = merchantItems.get(i);
+            String path = "merchant.items." + i;
+            config.set(path + ".item", merchantItem.getItemStack());
+            config.set(path + ".price", merchantItem.getPrice());
+            config.set(path + ".rarity", merchantItem.getRarity());
         }
         plugin.saveConfig();
     }
 
     public void addItem(ItemStack item) {
         if (item != null && !item.getType().isAir()) {
-            merchantItems.add(item.clone());
+            // Add with default price and rarity
+            merchantItems.add(new MerchantItem(item.clone(), 100.0, "Common"));
+            saveItems();
+        }
+    }
+    
+    public void updateItem(int index, MerchantItem item) {
+        if (index >= 0 && index < merchantItems.size()) {
+            merchantItems.set(index, item);
             saveItems();
         }
     }
@@ -56,14 +70,7 @@ public class ItemManager {
         }
     }
 
-    public List<ItemStack> getMerchantItems() {
-        return new ArrayList<>(merchantItems);
-    }
-    
-    public void setMerchantItems(List<ItemStack> items) {
-        this.merchantItems.clear();
-        this.merchantItems.addAll(items);
-        saveItems();
+    public List<MerchantItem> getMerchantItems() {
+        return merchantItems;
     }
 }
-
