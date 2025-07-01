@@ -1,6 +1,7 @@
 package com.yourpackage.mysterymerchant.ui;
 
 import com.yourpackage.mysterymerchant.MysteryMerchant;
+import com.yourpackage.mysterymerchant.merchant.MerchantItem;
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
 import org.bukkit.Material;
@@ -27,26 +28,32 @@ public class ShopGUI implements Listener {
 
     public void open(Player player) {
         String title = ChatColor.translateAlternateColorCodes('&', plugin.getConfig().getString("gui.title", "&5Mysterious Wares"));
+        // 54 slots = 6 rows
         gui = Bukkit.createInventory(null, 54, title);
-        populateShopItems();
+
         fillBorders();
+        populateShopItems();
+        
         plugin.getServer().getPluginManager().registerEvents(this, plugin);
         player.openInventory(gui);
     }
 
     private void populateShopItems() {
-        List<ItemStack> items = plugin.getMerchantManager().getItemManager().getMerchantItems();
-        for (ItemStack item : items) {
-            ItemStack shopItem = item.clone();
+        List<MerchantItem> items = plugin.getMerchantManager().getMerchantItems();
+        for (MerchantItem merchantItem : items) {
+            ItemStack shopItem = merchantItem.getItemStack().clone();
             ItemMeta meta = shopItem.getItemMeta();
             if (meta != null) {
                 List<String> lore = meta.hasLore() ? new ArrayList<>(meta.getLore()) : new ArrayList<>();
                 lore.add("");
-                lore.add(ChatColor.GREEN + "Price: " + ChatColor.WHITE + "$100"); // Placeholder price
-                lore.add(ChatColor.AQUA + "Click to purchase!");
+                lore.add(ChatColor.GOLD + "Price: " + ChatColor.WHITE + "$" + merchantItem.getPrice());
+                lore.add(ChatColor.AQUA + "Rarity: " + ChatColor.WHITE + merchantItem.getRarity());
+                lore.add("");
+                lore.add(ChatColor.YELLOW + "Click to purchase!");
                 meta.setLore(lore);
                 shopItem.setItemMeta(meta);
             }
+            // This will add items to the first available empty slot, which will be inside our border
             gui.addItem(shopItem);
         }
     }
@@ -56,11 +63,11 @@ public class ShopGUI implements Listener {
         ItemMeta meta = glassPane.getItemMeta();
         if (meta != null) meta.setDisplayName(" ");
         glassPane.setItemMeta(meta);
+
+        // This creates a border around a 9x4 central area
         for (int i = 0; i < gui.getSize(); i++) {
-            if (gui.getItem(i) == null) {
-                if (i < 9 || i > 44 || i % 9 == 0 || (i + 1) % 9 == 0) {
-                     gui.setItem(i, glassPane);
-                }
+            if (i < 9 || i >= 45 || i % 9 == 0 || (i + 1) % 9 == 0) {
+                 gui.setItem(i, glassPane);
             }
         }
     }
@@ -74,14 +81,19 @@ public class ShopGUI implements Listener {
 
         if (clickedItem == null || clickedItem.getType().isAir() || clickedItem.getType() == Material.BLACK_STAINED_GLASS_PANE) return;
 
+        // In a real plugin, you would check if the player has enough money here (e.g., with Vault)
         player.sendMessage(ChatColor.GREEN + "You purchased an item!");
         
+        // Give the player the item, but strip the price/rarity lore we added
         ItemStack purchasedItem = clickedItem.clone();
         ItemMeta meta = purchasedItem.getItemMeta();
         if (meta != null && meta.hasLore()) {
             List<String> newLore = new ArrayList<>(meta.getLore());
-            newLore.removeIf(line -> line.contains("Price:") || line.contains("Click to purchase!"));
-            if (newLore.isEmpty() || (newLore.size() == 1 && newLore.get(0).isEmpty())) {
+            newLore.removeIf(line -> line.contains("Price:") || line.contains("Rarity:") || line.contains("Click to purchase!"));
+            // Clean up empty lines that might be left over
+            newLore.removeIf(String::isEmpty);
+            
+            if (newLore.isEmpty()) {
                  meta.setLore(null);
             } else {
                  meta.setLore(newLore);
@@ -94,11 +106,8 @@ public class ShopGUI implements Listener {
 
     @EventHandler
     public void onInventoryClose(InventoryCloseEvent event) {
-        // This ensures the listener is always unregistered when the GUI is closed.
-        // This is the fix.
         if (event.getInventory() == gui) {
             HandlerList.unregisterAll(this);
         }
     }
-             }
-          
+}
