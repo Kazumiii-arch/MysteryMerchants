@@ -29,19 +29,12 @@ public class EditorGUI implements Listener {
     private final ItemManager itemManager;
     private Inventory gui;
     private Inventory editGui;
-    private int editingSlot = -1;
-    // Static reference to the item being edited so the chat listener can access it
-    private static MerchantItem staticEditingItem;
+    private int currentlyEditingSlot = -1;
 
     public EditorGUI(MysteryMerchant plugin) {
         this.plugin = plugin;
         this.itemManager = plugin.getMerchantManager().getItemManager();
         plugin.getServer().getPluginManager().registerEvents(this, plugin);
-    }
-
-    // Static method for the chat listener to get the item
-    public static MerchantItem getEditingItem() {
-        return staticEditingItem;
     }
 
     public void open(Player player) {
@@ -80,20 +73,17 @@ public class EditorGUI implements Listener {
     }
 
     private void openItemEditor(Player player, int slot) {
-        this.editingSlot = slot;
+        this.currentlyEditingSlot = slot;
         MerchantItem merchantItem = itemManager.getMerchantItems().get(slot);
-        staticEditingItem = merchantItem; // Update static reference
         
         editGui = Bukkit.createInventory(null, 36, "Editing Item...");
         
         editGui.setItem(4, merchantItem.getItemStack());
 
-        // Row 2: Core editing
         editGui.setItem(11, createControlButton(Material.NAME_TAG, ChatColor.GREEN + "Rename Item", Arrays.asList(ChatColor.GRAY + "Click to type a new name in chat."), false));
         editGui.setItem(13, createControlButton(Material.GOLD_INGOT, ChatColor.GOLD + "Price: $" + merchantItem.getPrice(), Arrays.asList(ChatColor.GREEN + "+$10", ChatColor.RED + "-$10"), true));
         editGui.setItem(15, createControlButton(Material.WRITABLE_BOOK, ChatColor.AQUA + "Add Lore Line", Arrays.asList(ChatColor.GRAY + "Click to type a lore line in chat."), false));
 
-        // Row 3: Advanced editing
         editGui.setItem(20, createControlButton(Material.COMMAND_BLOCK, ChatColor.LIGHT_PURPLE + "Add Command", Arrays.asList(ChatColor.GRAY + "Click to type a command in chat.", ChatColor.GRAY + "Use %player% for player name."), false));
         editGui.setItem(22, createControlButton(Material.AMETHYST_SHARD, getRarityColor(merchantItem.getRarity()) + "Rarity: " + merchantItem.getRarity(), Arrays.asList(ChatColor.YELLOW + "Click to cycle rarity."), true));
         editGui.setItem(24, createControlButton(Material.LAVA_BUCKET, ChatColor.RED + "Clear Lore/Commands", Arrays.asList(ChatColor.DARK_RED + "Left-click to clear ALL commands.", ChatColor.DARK_RED + "Right-click to clear ALL lore."), false));
@@ -127,13 +117,13 @@ public class EditorGUI implements Listener {
             if (event.getCurrentItem() == null || event.getCurrentItem().getType().isAir()) return;
 
             player.playSound(player.getLocation(), Sound.UI_BUTTON_CLICK, 1.0f, 1.2f);
-            MerchantItem itemToEdit = itemManager.getMerchantItems().get(editingSlot);
+            MerchantItem itemToEdit = itemManager.getMerchantItems().get(currentlyEditingSlot);
             
             switch(event.getSlot()) {
                 case 11: // Rename
                     player.closeInventory();
                     player.sendMessage(ChatColor.YELLOW + "Please type the new item name in chat. Use '&' for colors. Type 'cancel' to abort.");
-                    plugin.setPlayerEditing(player, "rename");
+                    plugin.setPlayerInEditMode(player, "rename", currentlyEditingSlot);
                     return;
                 case 13: // Price
                     double currentPrice = itemToEdit.getPrice();
@@ -143,12 +133,12 @@ public class EditorGUI implements Listener {
                 case 15: // Add Lore
                     player.closeInventory();
                     player.sendMessage(ChatColor.YELLOW + "Please type the new lore line in chat. Type 'cancel' to abort.");
-                    plugin.setPlayerEditing(player, "addlore");
+                    plugin.setPlayerInEditMode(player, "addlore", currentlyEditingSlot);
                     return;
                 case 20: // Add Command
                     player.closeInventory();
                     player.sendMessage(ChatColor.YELLOW + "Please type the command to add (without '/'). Use %player%. Type 'cancel' to abort.");
-                    plugin.setPlayerEditing(player, "addcommand");
+                    plugin.setPlayerInEditMode(player, "addcommand", currentlyEditingSlot);
                     return;
                 case 22: // Rarity
                     itemToEdit.setRarity(getNextRarity(itemToEdit.getRarity()));
@@ -171,23 +161,16 @@ public class EditorGUI implements Listener {
                     open(player);
                     return;
             }
-            itemManager.updateItem(editingSlot, itemToEdit);
-            openItemEditor(player, editingSlot);
+            itemManager.updateItem(currentlyEditingSlot, itemToEdit);
+            openItemEditor(player, currentlyEditingSlot);
         }
     }
 
     @EventHandler
     public void onInventoryClose(InventoryCloseEvent event) {
-        new BukkitRunnable() {
-            @Override
-            public void run() {
-                Inventory currentOpen = event.getPlayer().getOpenInventory().getTopInventory();
-                if (!currentOpen.equals(gui) && !currentOpen.equals(editGui)) {
-                    HandlerList.unregisterAll(EditorGUI.this);
-                    staticEditingItem = null; // Clear static reference
-                }
-            }
-        }.runTaskLater(plugin, 1L);
+        if (!plugin.isPlayerInEditMode((Player) event.getPlayer())) {
+            HandlerList.unregisterAll(this);
+        }
     }
 
     private ItemStack createControlButton(Material material, String name, List<String> lore, boolean enchanted) {
@@ -220,5 +203,5 @@ public class EditorGUI implements Listener {
             default: return "Common";
         }
     }
-                    }
-                                                
+                        }
+                                       
