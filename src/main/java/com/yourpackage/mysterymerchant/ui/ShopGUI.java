@@ -45,14 +45,19 @@ public class ShopGUI implements Listener {
     }
 
     private void populateShopItems() {
-        List<MerchantItem> items = plugin.getMerchantManager().getItemManager().getMerchantItems();
+        // Get the active merchant to access its specific stock for this spawn
+        Merchant activeMerchant = plugin.getMerchantManager().getActiveMerchant();
+        if (activeMerchant == null) return;
+
+        // Get the stock from the active merchant, not the item manager's master list
+        List<MerchantItem> items = activeMerchant.getCurrentStock();
+        
         for (MerchantItem merchantItem : items) {
             ItemStack shopItem = merchantItem.getItemStack().clone();
             ItemMeta meta = shopItem.getItemMeta();
             if (meta != null) {
                 meta.setDisplayName(getRarityColor(merchantItem.getRarity()) + ChatColor.stripColor(meta.getDisplayName()));
                 
-                // Use original lore if it exists, otherwise create a new list
                 List<String> lore = meta.hasLore() ? meta.getLore().stream().map(line -> ChatColor.translateAlternateColorCodes('&', line)).collect(Collectors.toList()) : new ArrayList<>();
                 lore.add("");
                 lore.add(ChatColor.GOLD + "Price: " + ChatColor.WHITE + "$" + merchantItem.getPrice());
@@ -129,10 +134,12 @@ public class ShopGUI implements Listener {
             return;
         }
 
-        // Find the corresponding MerchantItem by comparing the base item without the shop lore
+        Merchant activeMerchant = plugin.getMerchantManager().getActiveMerchant();
+        if (activeMerchant == null) return;
+
+        // Find the corresponding MerchantItem from the current merchant's stock
         MerchantItem clickedMerchantItem = null;
-        for(MerchantItem item : plugin.getMerchantManager().getItemManager().getMerchantItems()){
-            // We create a "clean" version of the clicked item to compare against the original
+        for(MerchantItem item : activeMerchant.getCurrentStock()){
             ItemStack cleanClickedItem = clickedItem.clone();
             ItemMeta cleanMeta = cleanClickedItem.getItemMeta();
             if (cleanMeta != null && cleanMeta.hasLore()) {
@@ -156,7 +163,6 @@ public class ShopGUI implements Listener {
         // In a real plugin, you would check if the player has enough money here
         player.playSound(player.getLocation(), Sound.ENTITY_VILLAGER_TRADE, 1.0f, 1.0f);
 
-        // Check if this is a command item or a regular item
         if (clickedMerchantItem.getCommands() != null && !clickedMerchantItem.getCommands().isEmpty()) {
             player.sendMessage(ChatColor.GREEN + "You purchased a special perk!");
             for (String command : clickedMerchantItem.getCommands()) {
@@ -186,5 +192,4 @@ public class ShopGUI implements Listener {
             HandlerList.unregisterAll(this);
         }
     }
-                    }
-                    
+}
