@@ -28,7 +28,6 @@ public class ShopGUI implements Listener {
 
     public void open(Player player) {
         String title = ChatColor.translateAlternateColorCodes('&', plugin.getConfig().getString("gui.title", "&5Mysterious Wares"));
-        // 54 slots = 6 rows
         gui = Bukkit.createInventory(null, 54, title);
 
         fillBorders();
@@ -39,8 +38,10 @@ public class ShopGUI implements Listener {
     }
 
     private void populateShopItems() {
+        // FIXED: Now correctly uses List<MerchantItem>
         List<MerchantItem> items = plugin.getMerchantManager().getMerchantItems();
         for (MerchantItem merchantItem : items) {
+            // FIXED: Extracts the ItemStack from the MerchantItem
             ItemStack shopItem = merchantItem.getItemStack().clone();
             ItemMeta meta = shopItem.getItemMeta();
             if (meta != null) {
@@ -53,7 +54,6 @@ public class ShopGUI implements Listener {
                 meta.setLore(lore);
                 shopItem.setItemMeta(meta);
             }
-            // This will add items to the first available empty slot, which will be inside our border
             gui.addItem(shopItem);
         }
     }
@@ -64,7 +64,6 @@ public class ShopGUI implements Listener {
         if (meta != null) meta.setDisplayName(" ");
         glassPane.setItemMeta(meta);
 
-        // This creates a border around a 9x4 central area
         for (int i = 0; i < gui.getSize(); i++) {
             if (i < 9 || i >= 45 || i % 9 == 0 || (i + 1) % 9 == 0) {
                  gui.setItem(i, glassPane);
@@ -81,16 +80,13 @@ public class ShopGUI implements Listener {
 
         if (clickedItem == null || clickedItem.getType().isAir() || clickedItem.getType() == Material.BLACK_STAINED_GLASS_PANE) return;
 
-        // In a real plugin, you would check if the player has enough money here (e.g., with Vault)
         player.sendMessage(ChatColor.GREEN + "You purchased an item!");
         
-        // Give the player the item, but strip the price/rarity lore we added
         ItemStack purchasedItem = clickedItem.clone();
         ItemMeta meta = purchasedItem.getItemMeta();
         if (meta != null && meta.hasLore()) {
             List<String> newLore = new ArrayList<>(meta.getLore());
             newLore.removeIf(line -> line.contains("Price:") || line.contains("Rarity:") || line.contains("Click to purchase!"));
-            // Clean up empty lines that might be left over
             newLore.removeIf(String::isEmpty);
             
             if (newLore.isEmpty()) {
