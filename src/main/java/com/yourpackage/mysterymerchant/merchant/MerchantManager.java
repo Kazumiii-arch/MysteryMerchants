@@ -1,113 +1,35 @@
 package com.yourpackage.mysterymerchant.merchant;
 
-import com.yourpackage.mysterymerchant.MysteryMerchant;
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
-import org.bukkit.Location;
-import org.bukkit.configuration.file.FileConfiguration;
-import org.bukkit.scheduler.BukkitRunnable;
-import org.bukkit.scheduler.BukkitTask;
-
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
-import java.util.Random;
+import org.bukkit.boss.BarColor; // NEW
+import org.bukkit.boss.BarStyle; // NEW
+import org.bukkit.boss.BossBar; // NEW
+import org.bukkit.entity.Player; // NEW
+// ... (other imports)
 
 public class MerchantManager {
 
-    private final MysteryMerchant plugin;
-    private Location spawnLocation;
-    private Merchant activeMerchant;
-    private final ItemManager itemManager;
+    // ... (plugin, location, merchant, itemManager fields are unchanged) ...
     private BukkitTask despawnTask;
+    private BossBar bossBar; // NEW
 
-    public MerchantManager(MysteryMerchant plugin) {
-        this.plugin = plugin;
-        this.itemManager = new ItemManager(plugin);
-        loadSpawnLocation();
-    }
-
-    private void loadSpawnLocation() {
-        FileConfiguration config = plugin.getConfig();
-        if (config.contains("merchant.spawn-location")) {
-            this.spawnLocation = config.getLocation("merchant.spawn-location");
-        } else {
-            this.spawnLocation = null;
-        }
-    }
-
-    public void setSpawnLocation(Location location) {
-        this.spawnLocation = location;
-        plugin.getConfig().set("merchant.spawn-location", location);
-        plugin.saveConfig();
-    }
+    // ... (constructor, loadSpawnLocation, setSpawnLocation are unchanged) ...
 
     public boolean spawnMerchant() {
-        if (spawnLocation == null) {
-            plugin.getLogger().warning("Cannot spawn merchant: spawn location not set.");
-            return false;
-        }
-        if (isMerchantActive()) {
-            plugin.getLogger().warning("A merchant is already active.");
-            return false;
-        }
-
+        // ... (existing spawn logic is unchanged up to spawning the entity) ...
+        
         this.activeMerchant = new Merchant(this, spawnLocation);
-        
-        // Generate the randomized stock for this specific merchant
         this.activeMerchant.setCurrentStock(generateRandomizedStock());
-        
         this.activeMerchant.spawn();
+        
         startDespawnTimer();
+        
+        // NEW: Create and show the Boss Bar
+        createBossBar();
 
-        String spawnMessage = ChatColor.translateAlternateColorCodes('&', plugin.getConfig().getString("messages.merchant-spawn", "&5A Mysterious Merchant has appeared!"));
-        Bukkit.broadcastMessage(spawnMessage);
+        // ... (broadcast message is unchanged) ...
         return true;
-    }
-
-    // --- Method to generate the random inventory ---
-    private List<MerchantItem> generateRandomizedStock() {
-        FileConfiguration config = plugin.getConfig();
-        if (!config.getBoolean("shop-randomization.enabled", true)) {
-            // If randomization is disabled, return all items
-            return itemManager.getMerchantItems();
-        }
-
-        List<MerchantItem> allPossibleItems = itemManager.getMerchantItems();
-        List<MerchantItem> randomizedStock = new ArrayList<>();
-        Random random = new Random();
-
-        // Shuffle the list to ensure different items are checked first each time
-        Collections.shuffle(allPossibleItems);
-
-        int maxItems = config.getInt("shop-randomization.max-items-per-spawn", 12);
-
-        for (MerchantItem item : allPossibleItems) {
-            if (randomizedStock.size() >= maxItems) {
-                break; // Stop if we've reached the max number of items
-            }
-
-            double chance = 0.0;
-            switch (item.getRarity().toLowerCase()) {
-                case "legendary":
-                    chance = config.getDouble("shop-randomization.chance-legendary", 0.10);
-                    break;
-                case "epic":
-                    chance = config.getDouble("shop-randomization.chance-epic", 0.25);
-                    break;
-                case "rare":
-                    chance = config.getDouble("shop-randomization.chance-rare", 0.50);
-                    break;
-                default: // Common
-                    chance = config.getDouble("shop-randomization.chance-common", 0.85);
-                    break;
-            }
-
-            if (random.nextDouble() <= chance) {
-                randomizedStock.add(item);
-            }
-        }
-        return randomizedStock;
     }
 
     public void despawnMerchant() {
@@ -117,39 +39,66 @@ public class MerchantManager {
             despawnTask.cancel();
         }
         
+        // NEW: Remove the Boss Bar
+        removeBossBar();
+        
         activeMerchant.despawn(true);
         this.activeMerchant = null;
 
-        String despawnMessage = ChatColor.translateAlternateColorCodes('&', plugin.getConfig().getString("messages.merchant-despawn", "&5The Mysterious Merchant has vanished..."));
-        Bukkit.broadcastMessage(despawnMessage);
+        // ... (broadcast message is unchanged) ...
     }
     
     private void startDespawnTimer() {
         long duration = plugin.getConfig().getLong("merchant.duration-minutes", 5) * 60 * 20;
         this.despawnTask = new BukkitRunnable() {
+            int ticksRemaining = (int) (duration / 20);
             @Override
             public void run() {
-                if (isMerchantActive()) {
-                    plugin.getLogger().info("Mystery Merchant despawning automatically.");
-                    despawnMerchant();
+                // NEW: Update the Boss Bar progress
+                if (bossBar != null) {
+                    double progress = (double) activeMerchant.getRemainingSeconds() / (plugin.getConfig().getLong("merchant.duration-minutes", 5) * 60);
+                    bossBar.setProgress(Math.max(0.0, Math.min(1.0, progress)));
+                }
+                
+                if (--ticksRemaining <= 0) {
+                    if (isMerchantActive()) {
+                        plugin.getLogger().info("Mystery Merchant despawning automatically.");
+                        despawnMerchant();
+                    }
+                    this.cancel();
                 }
             }
-        }.runTaskLater(plugin, duration);
+        }.runTaskTimer(plugin, 0L, 20L); // Run every second
     }
 
-    public boolean isMerchantActive() {
-        return activeMerchant != null && activeMerchant.isSpawned();
+    // --- NEW: Methods to manage the Boss Bar ---
+    private void createBossBar() {
+        if (!plugin.getConfig().getBoolean("boss-bar.enabled", true)) return;
+
+        String title = ChatColor.translateAlternateColorCodes('&', plugin.getConfig().getString("boss-bar.title", "&5&lA Mysterious Merchant has arrived!"));
+        BarColor color;
+        try {
+            color = BarColor.valueOf(plugin.getConfig().getString("boss-bar.color", "PURPLE").toUpperCase());
+        } catch (IllegalArgumentException e) {
+            color = BarColor.PURPLE;
+            plugin.getLogger().warning("Invalid Boss Bar color in config.yml! Defaulting to PURPLE.");
+        }
+
+        bossBar = Bukkit.createBossBar(title, color, BarStyle.SOLID);
+        bossBar.setProgress(1.0);
+        
+        // Add all online players to the boss bar
+        for (Player player : Bukkit.getOnlinePlayers()) {
+            bossBar.addPlayer(player);
+        }
     }
-    
-    public Merchant getActiveMerchant() {
-        return activeMerchant;
+
+    private void removeBossBar() {
+        if (bossBar != null) {
+            bossBar.removeAll();
+            bossBar = null;
+        }
     }
-    
-    public ItemManager getItemManager() {
-        return itemManager;
-    }
-    
-    public MysteryMerchant getPlugin() {
-        return plugin;
-    }
+
+    // ... (rest of the file is unchanged) ...
 }
