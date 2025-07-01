@@ -20,6 +20,7 @@ import org.bukkit.scheduler.BukkitRunnable;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.stream.Collectors;
 
 public class ShopGUI implements Listener {
 
@@ -50,10 +51,17 @@ public class ShopGUI implements Listener {
             ItemMeta meta = shopItem.getItemMeta();
             if (meta != null) {
                 meta.setDisplayName(getRarityColor(merchantItem.getRarity()) + ChatColor.stripColor(meta.getDisplayName()));
-                List<String> lore = meta.hasLore() ? new ArrayList<>(meta.getLore()) : new ArrayList<>();
+                
+                // Use original lore if it exists, otherwise create a new list
+                List<String> lore = meta.hasLore() ? meta.getLore().stream().map(line -> ChatColor.translateAlternateColorCodes('&', line)).collect(Collectors.toList()) : new ArrayList<>();
                 lore.add("");
                 lore.add(ChatColor.GOLD + "Price: " + ChatColor.WHITE + "$" + merchantItem.getPrice());
                 lore.add(getRarityColor(merchantItem.getRarity()) + "Rarity: " + ChatColor.WHITE + merchantItem.getRarity());
+                
+                if (merchantItem.getCommands() != null && !merchantItem.getCommands().isEmpty()) {
+                    lore.add(ChatColor.LIGHT_PURPLE + "" + ChatColor.ITALIC + "This is a special perk!");
+                }
+
                 lore.add("");
                 lore.add(ChatColor.YELLOW + "Click to purchase!");
                 meta.setLore(lore);
@@ -117,26 +125,48 @@ public class ShopGUI implements Listener {
         Player player = (Player) event.getWhoClicked();
         ItemStack clickedItem = event.getCurrentItem();
 
-        // FIXED: Now also checks for the CLOCK material
         if (clickedItem == null || clickedItem.getType().isAir() || clickedItem.getType().name().endsWith("_PANE") || clickedItem.getType() == Material.CLOCK) {
             return;
         }
 
-        player.playSound(player.getLocation(), Sound.ENTITY_VILLAGER_TRADE, 1.0f, 1.0f);
-        player.sendMessage(ChatColor.GREEN + "You purchased an item!");
-        
-        ItemStack purchasedItem = clickedItem.clone();
-        ItemMeta meta = purchasedItem.getItemMeta();
-        if (meta != null && meta.hasLore()) {
-            List<String> newLore = new ArrayList<>(meta.getLore());
-            newLore.removeIf(line -> line.contains("Price:") || line.contains("Rarity:") || line.contains("Click to purchase!"));
-            newLore.removeIf(String::isEmpty);
-            
-            if (newLore.isEmpty()) meta.setLore(null);
-            else meta.setLore(newLore);
-            purchasedItem.setItemMeta(meta);
+        // Find the corresponding MerchantItem by comparing the base item without the shop lore
+        MerchantItem clickedMerchantItem = null;
+        for(MerchantItem item : plugin.getMerchantManager().getItemManager().getMerchantItems()){
+            // We create a "clean" version of the clicked item to compare against the original
+            ItemStack cleanClickedItem = clickedItem.clone();
+            ItemMeta cleanMeta = cleanClickedItem.getItemMeta();
+            if (cleanMeta != null && cleanMeta.hasLore()) {
+                List<String> originalLore = item.getItemStack().hasItemMeta() && item.getItemStack().getItemMeta().hasLore() ? item.getItemStack().getItemMeta().getLore() : new ArrayList<>();
+                cleanMeta.setLore(originalLore);
+                cleanMeta.setDisplayName(item.getItemStack().getItemMeta().getDisplayName());
+            }
+            cleanClickedItem.setItemMeta(cleanMeta);
+
+            if(item.getItemStack().isSimilar(cleanClickedItem)){
+                clickedMerchantItem = item;
+                break;
+            }
         }
-        player.getInventory().addItem(purchasedItem);
+
+        if(clickedMerchantItem == null) {
+            player.sendMessage(ChatColor.RED + "An error occurred trying to purchase this item.");
+            return;
+        }
+
+        // In a real plugin, you would check if the player has enough money here
+        player.playSound(player.getLocation(), Sound.ENTITY_VILLAGER_TRADE, 1.0f, 1.0f);
+
+        // Check if this is a command item or a regular item
+        if (clickedMerchantItem.getCommands() != null && !clickedMerchantItem.getCommands().isEmpty()) {
+            player.sendMessage(ChatColor.GREEN + "You purchased a special perk!");
+            for (String command : clickedMerchantItem.getCommands()) {
+                Bukkit.dispatchCommand(Bukkit.getConsoleSender(), command.replace("%player%", player.getName()));
+            }
+        } else {
+            player.sendMessage(ChatColor.GREEN + "You purchased an item!");
+            player.getInventory().addItem(clickedMerchantItem.getItemStack().clone());
+        }
+        
         player.closeInventory();
     }
 
@@ -145,7 +175,7 @@ public class ShopGUI implements Listener {
             case "legendary": return ChatColor.GOLD;
             case "epic": return ChatColor.LIGHT_PURPLE;
             case "rare": return ChatColor.AQUA;
-            default: return ChatColor.GRAY; // Common
+            default: return ChatColor.GRAY;
         }
     }
 
@@ -156,4 +186,5 @@ public class ShopGUI implements Listener {
             HandlerList.unregisterAll(this);
         }
     }
-}
+                    }
+                    
