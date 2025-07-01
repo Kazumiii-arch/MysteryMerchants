@@ -1,8 +1,12 @@
+# src/main/resources/plugin.yml
 name: MysteryMerchant
 main: com.yourpackage.mysterymerchant.MysteryMerchant
 version: '${version}'
-# UPDATED: Now officially targeting API version 1.21
 api-version: '1.21'
+# This tells Spigot to load Vault before our plugin, which is required for the economy to work.
+depend: [Vault]
+# This tells Spigot that our plugin can use PlaceholderAPI, but doesn't require it to run.
+softdepend: [PlaceholderAPI]
 description: A mysterious merchant that sells rare, time-limited items.
 authors: [YourName]
 
