@@ -44,6 +44,7 @@ public class EditorGUI implements Listener {
         fillBorders(mainGui);
         populateMainItems();
         
+        plugin.playerOpenedEditor(player, this); // Track this editor instance
         player.openInventory(mainGui);
     }
 
@@ -238,8 +239,10 @@ public class EditorGUI implements Listener {
 
     @EventHandler
     public void onInventoryClose(InventoryCloseEvent event) {
-        if (!plugin.isPlayerInEditMode((Player) event.getPlayer())) {
+        Player player = (Player) event.getPlayer();
+        if (!plugin.isPlayerInEditMode(player)) {
             HandlerList.unregisterAll(this);
+            plugin.playerClosedEditor(player); // Clean up the editor instance map
         }
     }
 
@@ -273,4 +276,5 @@ public class EditorGUI implements Listener {
             default: return "Common";
         }
     }
-    }
+            }
+                
