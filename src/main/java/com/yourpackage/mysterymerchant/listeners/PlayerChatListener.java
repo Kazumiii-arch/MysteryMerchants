@@ -30,21 +30,23 @@ public class PlayerChatListener implements Listener {
             return;
         }
 
-        // Cancel the event so the message doesn't appear in public chat
         event.setCancelled(true);
         String message = event.getMessage();
+        
+        Integer editingSlot = plugin.getPlayerEditingItemSlot(player);
         
         // Handle cancellation
         if (message.equalsIgnoreCase("cancel")) {
             plugin.removePlayerFromEditMode(player);
             player.sendMessage(ChatColor.RED + "Edit cancelled.");
-            // Re-open the main editor GUI on the main server thread
-            plugin.getServer().getScheduler().runTask(plugin, () -> new EditorGUI(plugin).open(player));
+            // Return to the specific item editor if we know which one it was
+            if (editingSlot != null) {
+                plugin.getServer().getScheduler().runTask(plugin, () -> new EditorGUI(plugin).openItemEditor(player, editingSlot));
+            }
             return;
         }
 
         String editMode = plugin.getPlayerEditMode(player);
-        Integer editingSlot = plugin.getPlayerEditingItemSlot(player);
         ItemManager itemManager = plugin.getMerchantManager().getItemManager();
 
         if (editingSlot == null) {
@@ -82,9 +84,9 @@ public class PlayerChatListener implements Listener {
                 break;
         }
         
-        // Save the changes, remove the player from edit mode, and re-open the GUI
+        // Save the changes, remove the player from edit mode, and re-open the specific item editor
         itemManager.updateItem(editingSlot, itemToEdit);
         plugin.removePlayerFromEditMode(player);
-        plugin.getServer().getScheduler().runTask(plugin, () -> new EditorGUI(plugin).open(player));
+        plugin.getServer().getScheduler().runTask(plugin, () -> new EditorGUI(plugin).openItemEditor(player, editingSlot));
     }
 }
