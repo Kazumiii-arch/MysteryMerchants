@@ -137,16 +137,14 @@ public class EditorGUI implements Listener {
         boolean isEditGui = topInventory.equals(editGui);
 
         if (!isMainGui && !isEditGui) {
-            return; // Not our GUI, do nothing.
+            return;
         }
 
-        // It's one of our GUIs, so we take full control. Cancel the event immediately.
         event.setCancelled(true);
 
         Player player = (Player) event.getWhoClicked();
         Inventory clickedInventory = event.getClickedInventory();
 
-        // Only process clicks inside the top inventory.
         if (!topInventory.equals(clickedInventory)) {
             return;
         }
@@ -156,91 +154,97 @@ public class EditorGUI implements Listener {
             return;
         }
 
-        // --- Main Editor GUI Logic ---
         if (isMainGui) {
-            if (clickedItem.getType().name().endsWith("_PANE")) return;
+            handleMainGuiClick(event, player);
+        } else if (isEditGui) {
+            handleEditGuiClick(event, player);
+        }
+    }
 
-            if (event.getSlot() == 50) {
-                player.closeInventory();
-                return;
-            }
-             if (event.getSlot() == 48) { // Info button
-                player.playSound(player.getLocation(), Sound.UI_BUTTON_CLICK, 1.0f, 1.0f);
-                return;
-            }
+    private void handleMainGuiClick(InventoryClickEvent event, Player player) {
+        if (event.getCurrentItem().getType().name().endsWith("_PANE")) return;
 
+        if (event.getSlot() == 50) {
+            player.closeInventory();
+            return;
+        }
+        if (event.getSlot() == 48) {
             player.playSound(player.getLocation(), Sound.UI_BUTTON_CLICK, 1.0f, 1.0f);
-            
-            int itemIndex = 0;
-            for (int i = 0; i < event.getSlot(); i++) {
-                ItemStack itemInSlot = gui.getItem(i);
-                if (itemInSlot != null && !itemInSlot.getType().name().endsWith("_PANE") && itemInSlot.getType() != Material.EMERALD && itemInSlot.getType() != Material.BARRIER) {
-                    itemIndex++;
-                }
-            }
+            return;
+        }
 
-            if(event.getClick() == ClickType.LEFT) {
-                openItemEditor(player, itemIndex);
-            } else if (event.getClick() == ClickType.RIGHT) {
-                itemManager.removeItem(itemIndex);
-                player.sendMessage(ChatColor.GREEN + "Item removed.");
-                open(player);
+        player.playSound(player.getLocation(), Sound.UI_BUTTON_CLICK, 1.0f, 1.0f);
+        
+        int itemIndex = 0;
+        for (int i = 0; i < event.getSlot(); i++) {
+            ItemStack itemInSlot = gui.getItem(i);
+            if (itemInSlot != null && !itemInSlot.getType().name().endsWith("_PANE") && itemInSlot.getType() != Material.EMERALD && itemInSlot.getType() != Material.BARRIER) {
+                itemIndex++;
             }
         }
-        
-        // --- Item Specific Editor GUI Logic ---
-        else if (isEditGui) {
-            if (event.getSlot() == 4) return; // Ignore clicks on the display item
 
-            player.playSound(player.getLocation(), Sound.UI_BUTTON_CLICK, 1.0f, 1.2f);
-            MerchantItem itemToEdit = itemManager.getMerchantItems().get(currentlyEditingItemIndex);
-            
-            switch(event.getSlot()) {
-                case 11: // Rename
-                    player.closeInventory();
-                    player.sendMessage(ChatColor.YELLOW + "Please type the new item name in chat. Use '&' for colors. Type 'cancel' to abort.");
-                    plugin.setPlayerInEditMode(player, "rename", currentlyEditingItemIndex);
-                    return;
-                case 13: // Price
-                    double currentPrice = itemToEdit.getPrice();
-                    if (event.isLeftClick()) itemToEdit.setPrice(currentPrice + 10);
-                    else if (event.isRightClick()) itemToEdit.setPrice(Math.max(0, currentPrice - 10));
-                    break;
-                case 15: // Add Lore
-                    player.closeInventory();
-                    player.sendMessage(ChatColor.YELLOW + "Please type the new lore line in chat. Type 'cancel' to abort.");
-                    plugin.setPlayerInEditMode(player, "addlore", currentlyEditingItemIndex);
-                    return;
-                case 20: // Add Command
-                    player.closeInventory();
-                    player.sendMessage(ChatColor.YELLOW + "Please type the command to add (without '/'). Use %player%. Type 'cancel' to abort.");
-                    plugin.setPlayerInEditMode(player, "addcommand", currentlyEditingItemIndex);
-                    return;
-                case 22: // Rarity
-                    itemToEdit.setRarity(getNextRarity(itemToEdit.getRarity()));
-                    break;
-                case 24: // Clear Lore/Commands
-                    if(event.isLeftClick()){
-                        itemToEdit.getCommands().clear();
-                        player.sendMessage(ChatColor.GREEN + "All commands for this item have been cleared.");
-                    } else if (event.isRightClick()){
-                        ItemMeta meta = itemToEdit.getItemStack().getItemMeta();
-                        if(meta != null) {
-                            meta.setLore(new ArrayList<>());
-                            itemToEdit.getItemStack().setItemMeta(meta);
-                        }
-                        player.sendMessage(ChatColor.GREEN + "All lore for this item has been cleared.");
+        if(event.getClick() == ClickType.LEFT) {
+            openItemEditor(player, itemIndex);
+        } else if (event.getClick() == ClickType.RIGHT) {
+            itemManager.removeItem(itemIndex);
+            player.sendMessage(ChatColor.GREEN + "Item removed.");
+            open(player);
+        }
+    }
+    
+    private void handleEditGuiClick(InventoryClickEvent event, Player player) {
+        if (event.getSlot() == 4) return;
+
+        player.playSound(player.getLocation(), Sound.UI_BUTTON_CLICK, 1.0f, 1.2f);
+        MerchantItem itemToEdit = itemManager.getMerchantItems().get(currentlyEditingItemIndex);
+        
+        switch(event.getSlot()) {
+            case 11: // Rename
+                player.closeInventory();
+                player.sendMessage(ChatColor.YELLOW + "Please type the new item name in chat. Use '&' for colors. Type 'cancel' to abort.");
+                plugin.setPlayerInEditMode(player, "rename", currentlyEditingItemIndex);
+                break;
+            case 13: // Price
+                double currentPrice = itemToEdit.getPrice();
+                if (event.isLeftClick()) itemToEdit.setPrice(currentPrice + 10);
+                else if (event.isRightClick()) itemToEdit.setPrice(Math.max(0, currentPrice - 10));
+                itemManager.updateItem(currentlyEditingItemIndex, itemToEdit);
+                openItemEditor(player, currentlyEditingItemIndex);
+                break;
+            case 15: // Add Lore
+                player.closeInventory();
+                player.sendMessage(ChatColor.YELLOW + "Please type the new lore line in chat. Type 'cancel' to abort.");
+                plugin.setPlayerInEditMode(player, "addlore", currentlyEditingItemIndex);
+                break;
+            case 20: // Add Command
+                player.closeInventory();
+                player.sendMessage(ChatColor.YELLOW + "Please type the command to add (without '/'). Use %player%. Type 'cancel' to abort.");
+                plugin.setPlayerInEditMode(player, "addcommand", currentlyEditingItemIndex);
+                break;
+            case 22: // Rarity
+                itemToEdit.setRarity(getNextRarity(itemToEdit.getRarity()));
+                itemManager.updateItem(currentlyEditingItemIndex, itemToEdit);
+                openItemEditor(player, currentlyEditingItemIndex);
+                break;
+            case 24: // Clear Lore/Commands
+                if(event.isLeftClick()){
+                    itemToEdit.getCommands().clear();
+                    player.sendMessage(ChatColor.GREEN + "All commands for this item have been cleared.");
+                } else if (event.isRightClick()){
+                    ItemMeta meta = itemToEdit.getItemStack().getItemMeta();
+                    if(meta != null) {
+                        meta.setLore(new ArrayList<>());
+                        itemToEdit.getItemStack().setItemMeta(meta);
                     }
-                    break;
-                case 35: // Back button
-                    itemManager.saveItems();
-                    open(player);
-                    return;
-                default:
-                    return; // Clicked on an empty slot or something unexpected
-            }
-            itemManager.updateItem(currentlyEditingItemIndex, itemToEdit);
-            openItemEditor(player, currentlyEditingItemIndex);
+                    player.sendMessage(ChatColor.GREEN + "All lore for this item has been cleared.");
+                }
+                itemManager.updateItem(currentlyEditingItemIndex, itemToEdit);
+                openItemEditor(player, currentlyEditingItemIndex);
+                break;
+            case 35: // Back button
+                itemManager.saveItems();
+                open(player);
+                break;
         }
     }
 
@@ -281,5 +285,4 @@ public class EditorGUI implements Listener {
             default: return "Common";
         }
     }
-    }
-                 
+                }
