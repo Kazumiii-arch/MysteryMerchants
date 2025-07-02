@@ -6,6 +6,7 @@ import com.yourpackage.mysterymerchant.economy.EconomyManager;
 import com.yourpackage.mysterymerchant.listeners.PlayerChatListener;
 import com.yourpackage.mysterymerchant.listeners.PlayerInteractionListener;
 import com.yourpackage.mysterymerchant.merchant.MerchantManager;
+import com.yourpackage.mysterymerchant.ui.EditorGUI; // NEW IMPORT
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.scheduler.BukkitTask;
@@ -22,16 +23,16 @@ public final class MysteryMerchant extends JavaPlugin {
     private EconomyManager economyManager;
     private BukkitTask autoSpawnTask;
     
-    // Maps to track what a player is currently editing via chat
+    // --- NEW: Maps to manage editor state correctly ---
     private final Map<UUID, String> playerEditModeMap = new HashMap<>();
     private final Map<UUID, Integer> playerEditingItemSlotMap = new HashMap<>();
+    private final Map<UUID, EditorGUI> openEditors = new HashMap<>(); // Tracks the active editor instance for each player
 
     @Override
     public void onEnable() {
         instance = this;
         saveDefaultConfig();
         
-        // Initialize managers
         economyManager = new EconomyManager(this);
         merchantManager = new MerchantManager(this);
 
@@ -46,10 +47,8 @@ public final class MysteryMerchant extends JavaPlugin {
         getServer().getPluginManager().registerEvents(new PlayerInteractionListener(this), this);
         getServer().getPluginManager().registerEvents(new PlayerChatListener(this), this);
         
-        // Start the autospawn task
         startAutoSpawnTask();
         
-        // Register PlaceholderAPI expansion
         if(getServer().getPluginManager().getPlugin("PlaceholderAPI") != null) {
             new PAPIExpansion(this).register();
             getLogger().info("Successfully hooked into PlaceholderAPI!");
@@ -68,30 +67,21 @@ public final class MysteryMerchant extends JavaPlugin {
         getLogger().info("MysteryMerchant has been disabled.");
     }
 
-    // --- Methods to manage the autospawn task ---
     public void startAutoSpawnTask() {
-        if (autoSpawnTask != null) {
-            autoSpawnTask.cancel();
-        }
-        
-        if (!getConfig().getBoolean("autospawn.enabled", false)) {
-            return;
-        }
-
+        if (autoSpawnTask != null) autoSpawnTask.cancel();
+        if (!getConfig().getBoolean("autospawn.enabled", false)) return;
         long intervalHours = getConfig().getLong("autospawn.interval-hours", 4);
         long intervalTicks = intervalHours * 60 * 60 * 20;
-
         autoSpawnTask = getServer().getScheduler().runTaskTimer(this, () -> {
             if (!merchantManager.isMerchantActive()) {
                 getLogger().info("Attempting to automatically spawn the Mystery Merchant...");
                 merchantManager.spawnMerchant();
             }
         }, intervalTicks, intervalTicks);
-        
         getLogger().info("Automatic merchant spawning enabled. Interval: " + intervalHours + " hours.");
     }
 
-    // --- Methods to manage the player's editing state ---
+    // --- NEW: Updated methods to manage editor state ---
     public void setPlayerInEditMode(Player player, String editType, int itemSlot) {
         playerEditModeMap.put(player.getUniqueId(), editType);
         playerEditingItemSlotMap.put(player.getUniqueId(), itemSlot);
@@ -113,17 +103,22 @@ public final class MysteryMerchant extends JavaPlugin {
     public boolean isPlayerInEditMode(Player player) {
         return playerEditModeMap.containsKey(player.getUniqueId());
     }
+    
+    // --- NEW: Methods to track the active EditorGUI instance ---
+    public void playerOpenedEditor(Player player, EditorGUI editor) {
+        openEditors.put(player.getUniqueId(), editor);
+    }
+
+    public void playerClosedEditor(Player player) {
+        openEditors.remove(player.getUniqueId());
+    }
+
+    public EditorGUI getOpenEditorForPlayer(Player player) {
+        return openEditors.get(player.getUniqueId());
+    }
 
     // --- Getters for main components ---
-    public static MysteryMerchant getInstance() {
-        return instance;
-    }
-
-    public MerchantManager getMerchantManager() {
-        return merchantManager;
-    }
-    
-    public EconomyManager getEconomyManager() {
-        return economyManager;
-    }
-}
+    public static MysteryMerchant getInstance() { return instance; }
+    public MerchantManager getMerchantManager() { return merchantManager; }
+    public EconomyManager getEconomyManager() { return economyManager; }
+            }
