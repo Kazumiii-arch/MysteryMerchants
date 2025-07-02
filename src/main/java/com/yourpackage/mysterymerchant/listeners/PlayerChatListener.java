@@ -35,13 +35,14 @@ public class PlayerChatListener implements Listener {
         
         Integer editingSlot = plugin.getPlayerEditingItemSlot(player);
         
-        // Handle cancellation
+        // Get the specific editor instance that the player was using
+        EditorGUI activeEditor = plugin.getOpenEditorForPlayer(player);
+
         if (message.equalsIgnoreCase("cancel")) {
             plugin.removePlayerFromEditMode(player);
             player.sendMessage(ChatColor.RED + "Edit cancelled.");
-            // Return to the specific item editor if we know which one it was
-            if (editingSlot != null) {
-                plugin.getServer().getScheduler().runTask(plugin, () -> new EditorGUI(plugin).openItemEditor(player, editingSlot));
+            if (activeEditor != null && editingSlot != null) {
+                plugin.getServer().getScheduler().runTask(plugin, () -> activeEditor.openItemEditor(player, editingSlot));
             }
             return;
         }
@@ -56,7 +57,6 @@ public class PlayerChatListener implements Listener {
 
         MerchantItem itemToEdit = itemManager.getMerchantItems().get(editingSlot);
 
-        // Process the input based on what the player was editing
         switch (editMode.toLowerCase()) {
             case "rename":
                 ItemStack itemStack = itemToEdit.getItemStack();
@@ -84,9 +84,11 @@ public class PlayerChatListener implements Listener {
                 break;
         }
         
-        // Save the changes, remove the player from edit mode, and re-open the specific item editor
         itemManager.updateItem(editingSlot, itemToEdit);
         plugin.removePlayerFromEditMode(player);
-        plugin.getServer().getScheduler().runTask(plugin, () -> new EditorGUI(plugin).openItemEditor(player, editingSlot));
+        
+        if (activeEditor != null) {
+            plugin.getServer().getScheduler().runTask(plugin, () -> activeEditor.openItemEditor(player, editingSlot));
+        }
     }
 }
