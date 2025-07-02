@@ -198,17 +198,17 @@ public class EditorGUI implements Listener {
                 player.closeInventory();
                 player.sendMessage(ChatColor.YELLOW + "Please type the new item name in chat. Use '&' for colors. Type 'cancel' to abort.");
                 plugin.setPlayerInEditMode(player, "rename", currentlyEditingItemIndex);
-                return;
+                break;
             case 29: // Add Lore
                 player.closeInventory();
                 player.sendMessage(ChatColor.YELLOW + "Please type the new lore line in chat. Type 'cancel' to abort.");
                 plugin.setPlayerInEditMode(player, "addlore", currentlyEditingItemIndex);
-                return;
+                break;
             case 38: // Add Command
                 player.closeInventory();
                 player.sendMessage(ChatColor.YELLOW + "Please type the command to add (without '/'). Use %player%. Type 'cancel' to abort.");
                 plugin.setPlayerInEditMode(player, "addcommand", currentlyEditingItemIndex);
-                return;
+                break;
             case 24: // Price
                 double currentPrice = itemToEdit.getPrice();
                 if (event.isLeftClick()) itemToEdit.setPrice(currentPrice + 10);
@@ -242,7 +242,7 @@ public class EditorGUI implements Listener {
         Player player = (Player) event.getPlayer();
         if (!plugin.isPlayerInEditMode(player)) {
             HandlerList.unregisterAll(this);
-            plugin.playerClosedEditor(player); // Clean up the editor instance map
+            plugin.playerClosedEditor(player);
         }
     }
 
@@ -277,4 +277,4 @@ public class EditorGUI implements Listener {
         }
     }
             }
-                
+                                                
